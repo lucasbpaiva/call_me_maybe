@@ -1,0 +1,21 @@
+# Python artifacts and caches
+__pycache__/
+*.py[codz]
+
+# Pytest
+.pytest_cache/
+
+# Environments
+.env
+.venv
+env/
+venv/
+
+# mypy
+.mypy_cache/
+
+# VS Code
+.vscode/
+
+# Output files
+data/output/
