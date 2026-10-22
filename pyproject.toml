@@ -1,0 +1,27 @@
+[project]
+name = "call-me-maybe"
+version = "0.1.0"
+description = "A function calling tool that translates natural language into structured function arguments using an LLM."
+readme = "README.md"
+authors = [
+    { name = "Lucas Paiva", email = "lpaiva234@gmail.com" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=2.2.6",
+    "pydantic>=2.14.1",
+]
+
+[project.scripts]
+call-me-maybe = "call_me_maybe:main"
+
+[build-system]
+requires = ["uv_build>=0.12.7,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "flake8>=7.4.1",
+    "mypy>=2.4.0",
+    "pytest>=9.1.1",
+]
