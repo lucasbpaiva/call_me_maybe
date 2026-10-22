@@ -5,21 +5,21 @@ MYPY = uv run mypy
 .PHONY: install run debug clean lint lint-strict
 
 install:
-	uv sync
+	@uv sync
 
 run:
-	$(PYTHON) -m src
+	@$(PYTHON) -m src
 
 debug:
-	$(PYTHON) -m pdb -m src
+	@$(PYTHON) -m pdb -m src
 
 clean:
-	find . -type d -name "__pycache__" -exec rm -rf {} +
-	find . -type d -name ".mypy_cache" -exec rm -rf {} +
+	@find . -type d -name "__pycache__" -exec rm -rf {} +
+	@find . -type d -name ".mypy_cache" -exec rm -rf {} +
 
 lint:
-	$(FLAKE8) src/
-	$(MYPY) --warn-return-any\
+	@$(FLAKE8) src/
+	@$(MYPY) --warn-return-any\
 			--warn-unused-ignores\
 			--ignore-missing-imports\
 			--disallow-untyped-defs\
@@ -27,5 +27,5 @@ lint:
 			src/
 
 lint-strict:
-	$(FLAKE8) src/
-	$(MYPY) --strict src/
+	@$(FLAKE8) src/
+	@$(MYPY) --strict src/
