@@ -50,3 +50,6 @@ lint:
 lint-strict:
 	@$(FLAKE8) src/
 	@$(MYPY) --strict src/
+
+test: setup-env
+	uv run pytest tests/
