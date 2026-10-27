@@ -49,5 +49,18 @@ def main() -> None:
         sys.exit(1)
 
 
+def test_encoding(strs: list[str]) -> None:
+    model = Small_LLM_Model()
+    tokens = []
+    for word in strs:
+        token = model.encode(word).tolist()[0]
+        tokens.append((token, word))
+    print(tokens)
+
+
 if __name__ == "__main__":
-    main()
+    strs = [
+        "Hello", "abc", "computer", "Computer",
+        "12345", "3.14", '{"a": 1}', "\t",
+        ]
+    test_encoding(strs)
