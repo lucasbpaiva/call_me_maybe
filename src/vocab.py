@@ -1,5 +1,5 @@
 import json
-from llm_sdk.llm_sdk import Small_LLM_Model
+from llm_sdk import Small_LLM_Model
 
 
 def build_token_dictionary(model: Small_LLM_Model) -> dict[int, str]:
