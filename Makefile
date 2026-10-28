@@ -34,9 +34,17 @@ debug:
 	@$(PYTHON) -m pdb -m src
 
 clean:
-	@rm -rf $(VENV)
 	@find . -type d -name "__pycache__" -exec rm -rf {} +
 	@find . -type d -name ".mypy_cache" -exec rm -rf {} +
+	@find . -type d -name ".pytest_cache" -exec rm -rf {} +
+
+fclean: clean
+	@rm -rf $(VENV)
+ifneq ($(wildcard /goinfre/.),)
+	@rm -rf /goinfre/$(USER)/call_me_maybe_venv
+endif
+
+re: fclean install
 
 lint:
 	@$(FLAKE8) src/
