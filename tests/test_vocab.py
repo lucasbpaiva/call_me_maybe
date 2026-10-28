@@ -1,10 +1,10 @@
-import pytest
 from llm_sdk import Small_LLM_Model
 from src.vocab import build_token_dictionary
 
+
 def test_vocab_dictionary_matches_sdk() -> None:
     model = Small_LLM_Model()
-    vocab_dict = build_token_dictionary(model)
+    vocab_dict = build_token_dictionary(model)[0]
     sample_size = 2000
     for token_id in range(sample_size):
         # Ensure the token ID actually exists in the dictionary
