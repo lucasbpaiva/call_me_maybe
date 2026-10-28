@@ -11,7 +11,7 @@ PYTHON = uv run python
 FLAKE8 = uv run flake8
 MYPY = uv run mypy
 
-.PHONY: install run debug clean lint lint-strict
+.PHONY: install run debug clean fclean re test lint lint-strict
 
 setup-env:
 	@mkdir -p $(HF_HOME)
@@ -60,4 +60,4 @@ lint-strict:
 	@$(MYPY) --strict src/
 
 test: setup-env
-	uv run pytest tests/
+	@uv run pytest tests/
