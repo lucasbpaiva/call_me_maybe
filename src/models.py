@@ -17,7 +17,7 @@ class FunctionDefinition(BaseModel):
     name: str = Field(pattern=r"^fn_")
     description: str
     parameters: dict[str, ParameterDefinition] = Field(default_factory=dict)
-    return_type: ReturnDefinition
+    returns: ReturnDefinition
 
 
 class OutputRecord(BaseModel):
