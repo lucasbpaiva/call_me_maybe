@@ -47,17 +47,17 @@ endif
 re: fclean install
 
 lint:
-	@$(FLAKE8) src/
+	@$(FLAKE8) src/ tests/
 	@$(MYPY) --warn-return-any\
 			--warn-unused-ignores\
 			--ignore-missing-imports\
 			--disallow-untyped-defs\
 			--check-untyped-defs\
-			src/
+			src/ tests/
 
 lint-strict:
-	@$(FLAKE8) src/
-	@$(MYPY) --strict src/
+	@$(FLAKE8) src/ tests/
+	@$(MYPY) --strict src/ tests/
 
 test: setup-env
 	@uv run pytest tests/
