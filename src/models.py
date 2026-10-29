@@ -1,10 +1,10 @@
-from typing import Any
+from typing import Literal, Any
 from pydantic import BaseModel, Field
 
 
 class ParameterDefinition(BaseModel):
     """Defines a single parameter for a callable function."""
-    arg_type: str
+    arg_type: Literal["string", "number", "boolean", "object", "array"]
 
 
 class ReturnDefinition(BaseModel):
