@@ -4,7 +4,7 @@ from llm_sdk import Small_LLM_Model
 
 
 def get_masked_argmax(logits: list[float], allowed_ids: list[int]) -> int:
-    """Applies a boolean mask to logits and returns the highest allowed token ID."""
+    """Applies a boolean mask and returns the highest allowed token ID."""
     logits_array = np.array(logits)
     mask = np.zeros_like(logits_array, dtype=bool)
     mask[allowed_ids] = True
