@@ -1,15 +1,16 @@
 from typing import Literal, Any
 from pydantic import BaseModel, Field
+JsonPrimitive = Literal["string", "number", "boolean", "object", "array"]
 
 
 class ParameterDefinition(BaseModel):
     """Defines a single parameter for a callable function."""
-    arg_type: Literal["string", "number", "boolean", "object", "array"]
+    arg_type: JsonPrimitive = Field(alias="type")
 
 
 class ReturnDefinition(BaseModel):
     """Defines the return type schema."""
-    return_type: str
+    return_type: str = Field(alias="type")
 
 
 class FunctionDefinition(BaseModel):
@@ -18,6 +19,11 @@ class FunctionDefinition(BaseModel):
     description: str
     parameters: dict[str, ParameterDefinition] = Field(default_factory=dict)
     returns: ReturnDefinition
+
+
+class TestCase(BaseModel):
+    """Defines a single test case from the input JSON."""
+    prompt: str
 
 
 class OutputRecord(BaseModel):
