@@ -17,9 +17,9 @@ setup-env:
 	@mkdir -p $(HF_HOME)
 	@mkdir -p $(UV_CACHE_DIR)
 ifneq ($(wildcard /goinfre/.),)
+	@mkdir -p /goinfre/$(USER)/call_me_maybe_venv
 	@if [ ! -L ".venv" ]; then \
 		rm -rf .venv; \
-		mkdir -p /goinfre/$(USER)/call_me_maybe_venv; \
 		ln -s /goinfre/$(USER)/call_me_maybe_venv .venv; \
 	fi
 endif
@@ -30,7 +30,7 @@ install: setup-env
 run: setup-env
 	@$(PYTHON) -m src
 
-debug:
+debug: setup-env
 	@$(PYTHON) -m pdb -m src
 
 clean:
@@ -46,7 +46,7 @@ endif
 
 re: fclean install
 
-lint:
+lint: setup-env
 	@$(FLAKE8) src/ tests/
 	@$(MYPY) --warn-return-any\
 			--warn-unused-ignores\
@@ -55,7 +55,7 @@ lint:
 			--check-untyped-defs\
 			src/ tests/
 
-lint-strict:
+lint-strict: setup-env
 	@$(FLAKE8) src/ tests/
 	@$(MYPY) --strict src/ tests/
 
