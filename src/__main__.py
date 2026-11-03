@@ -1,8 +1,9 @@
 import argparse
 from pathlib import Path
-# from llm_sdk import Small_LLM_Model
-# from src.generator import generate_sequence
-# from src.vocab import build_token_dictionary
+from llm_sdk import Small_LLM_Model
+from src.constraints import PrefixTree
+from src.generator import generate_function_call
+from src.vocab import build_token_dictionary
 from src.io_utils import load_function_definitions, load_input_prompts
 
 
@@ -47,10 +48,22 @@ def main() -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     functions = load_function_definitions(args.functions_definition)
     test_cases = load_input_prompts(args.input)
+    trie = PrefixTree()
+    for fn in functions:
+        trie.insert(fn.name)
+    model = Small_LLM_Model()
+    token_dict, eos_token_id = build_token_dictionary(model)
+    results = []
+    for test_case in test_cases:
+        generated_json = generate_function_call(
+            model, test_case, functions, eos_token_id, trie, token_dict
+        )
+        result = "{" + f'"prompt": "{test_case.prompt}", ' + generated_json[1:]
+        results.append(result)
     print(
         f"Loaded {len(functions)} functions and {len(test_cases)} test cases."
     )
-    output_path.write_text("test")
+    output_path.write_text("[\n" + ",\n".join(results) + "\n]")
 
 
 if __name__ == "__main__":
