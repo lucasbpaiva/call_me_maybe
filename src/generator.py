@@ -9,7 +9,8 @@ from src.models import TestCase, FunctionDefinition
 def get_input_ids(model: Small_LLM_Model, raw_prompt: str) -> list[int]:
     """Tokenizes the raw prompt using the public model API."""
     input_tensor = model.encode(raw_prompt)
-    return input_tensor.tolist()[0]
+    input_ids: list[int] = input_tensor.tolist()[0]
+    return input_ids
 
 
 def get_allowed_token_ids(
@@ -18,8 +19,12 @@ def get_allowed_token_ids(
     token_dict: dict[int, str]
 ) -> list[int]:
     """Evaluates the vocabulary against the Trie to find valid next tokens."""
-    allowed_ids = []
+    allowed_ids: list[int] = []
+    is_complete_name = trie.search(current_prefix)
     for token_id, token_str in token_dict.items():
+        if is_complete_name and token_str.startswith('"'):
+            allowed_ids.append(token_id)
+            continue
         candidate_string = current_prefix + token_str
         if trie.is_prefix(candidate_string):
             allowed_ids.append(token_id)
@@ -42,7 +47,7 @@ def select_function_name(
     eos_token_id: int,
     model: Small_LLM_Model,
     max_length: int = 100
-):
+) -> str:
     try:
         generated_count = 0
         current_segment = ""
@@ -56,11 +61,12 @@ def select_function_name(
             next_token_id = get_masked_argmax(logits, allowed_ids)
             if next_token_id == eos_token_id:
                 break
-            input_ids.append(next_token_id)
-            current_segment += token_dict[next_token_id]
-            generated_count += 1
-            if trie.search(current_segment):
+            token_str = token_dict[next_token_id]
+            if '"' in token_str:
                 break
+            input_ids.append(next_token_id)
+            current_segment += token_str
+            generated_count += 1
         return current_segment
     except Exception as err:
         print(f"Error during sequence generation: {err}")
@@ -82,7 +88,7 @@ def generate_function_call(
     selected_name = select_function_name(
         input_ids, trie, token_dict, eos_token_id, model
     )
-    selected_schema = next(fn for fn in functions if fn.name == selected_name)
+    _ = next(fn for fn in functions if fn.name == selected_name)
     transition_ids = get_input_ids(model, '", "parameters": {}')
     input_ids.extend(transition_ids)
     # 4. Hand off to the new parameter constraint engine
