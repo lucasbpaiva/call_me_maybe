@@ -1,3 +1,4 @@
+import json
 import argparse
 from pathlib import Path
 from llm_sdk import Small_LLM_Model
@@ -58,12 +59,15 @@ def main() -> None:
         generated_json = generate_function_call(
             model, test_case, functions, eos_token_id, trie, token_dict
         )
-        result = "{" + f'"prompt": "{test_case.prompt}", ' + generated_json[1:]
-        results.append(result)
-    print(
-        f"Loaded {len(functions)} functions and {len(test_cases)} test cases."
-    )
-    output_path.write_text("[\n" + ",\n".join(results) + "\n]")
+        parsed_call = json.loads(generated_json)
+        final_obj = {
+            "prompt": test_case.prompt,
+            "name": parsed_call.get("name"),
+            "parameters": parsed_call.get("parameters", {})
+        }
+        results.append(final_obj)
+    formatted_json = json.dumps(results, indent=2)
+    output_path.write_text(formatted_json)
 
 
 if __name__ == "__main__":
