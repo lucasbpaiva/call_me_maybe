@@ -6,6 +6,8 @@ else
 	export UV_CACHE_DIR := $(HOME)/.cache/uv
 endif
 
+export HF_HUB_VERBOSITY := error
+
 VENV = .venv
 PYTHON = uv run python
 FLAKE8 = uv run flake8
