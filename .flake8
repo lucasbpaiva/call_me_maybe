@@ -1,6 +1,5 @@
 [flake8]
-max-line-length = 79
+
 docstring-convention = google
-extend-ignore = 
-    D100,
-    D104
+extend-select = D
+extend-ignore = D100, D104
