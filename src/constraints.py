@@ -1,3 +1,6 @@
+import re
+
+
 class Node:
     """Represents a single character node within the PrefixTree."""
     def __init__(self) -> None:
@@ -60,10 +63,10 @@ class PrefixTree:
         return True
 
     def get_next_characters(self, prefix: str) -> list[str]:
-        """Retrieves all valid continuation characters for a given prefix.
+        r"""Retrieves all valid continuation characters for a given prefix.
 
         If the prefix itself constitutes a complete valid key (a leaf node),
-        a null character '\\0' is included in the returned list to signal a
+        a null character '\0' is included in the returned list to signal a
         valid stopping point.
 
         Args:
@@ -84,3 +87,48 @@ class PrefixTree:
         for char in curr.children:
             next_chars.append(char)
         return next_chars
+
+
+class NumberValidator:
+    """A state machine for validating partial and complete JSON numbers.
+
+    This class uses regular expressions to determine whether a given string
+    is a valid mid-generation (partial) number or a fully parseable complete
+    number according to strict JSON grammar.
+
+    Attributes:
+        partial_pattern: Regex pattern matching valid incomplete numbers.
+        complete_pattern: Regex pattern matching strictly valid numbers.
+    """
+    def __init__(self) -> None:
+        """Initializes the NumberValidator with compiled regex patterns."""
+        # Matches: "-", "-0", "4", "4.", "-4.5", but rejects "04"
+        self.partial_pattern = re.compile(r"^-?(?:0|[1-9]\d*)?(?:\.\d*)?$")
+        # Matches strictly valid JSON numbers: "4", "-0", "4.5"
+        self.complete_pattern = re.compile(r"^-?(?:0|[1-9]\d*)(?:\.\d+)?$")
+
+    def is_partial(self, text: str) -> bool:
+        """Determines if the text can continue to become a valid number.
+
+        Args:
+            text: The string representing the currently generated sequence.
+
+        Returns:
+            True if the text represents a valid partial number or is empty,
+            False otherwise.
+        """
+        if text == "":
+            return True
+        return bool(self.partial_pattern.match(text))
+
+    def is_complete(self, text: str) -> bool:
+        """Determines if the text is a complete, parseable number.
+
+        Args:
+            text: The string to validate.
+
+        Returns:
+            True if the text exactly matches the complete JSON number syntax,
+            False otherwise.
+        """
+        return bool(self.complete_pattern.match(text))
