@@ -3,6 +3,16 @@ from src.vocab import build_token_dictionary
 
 
 def test_vocab_dictionary_matches_sdk() -> None:
+    """Tests that the custom token dictionary accurately matches the model SDK.
+
+    Iterates through a sample of 2000 token IDs, verifying that the string
+    representation produced by the locally built vocabulary dictionary exactly
+    matches the output of the model's native `decode` method.
+
+    Raises:
+        AssertionError: If the decoded string from the dictionary does not
+            match the SDK's decoded string for any given token ID.
+    """
     model = Small_LLM_Model()
     vocab_dict = build_token_dictionary(model)[0]
     sample_size = 2000
