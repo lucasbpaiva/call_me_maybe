@@ -2,7 +2,7 @@ import sys
 import numpy as np
 from llm_sdk import Small_LLM_Model
 from src.prompt import build_prompt
-from src.constraints import PrefixTree, NumberValidator
+from src.constraints import PrefixTree, NumberValidator, StringValidator
 from src.models import TestCase, FunctionDefinition
 
 
@@ -167,6 +167,77 @@ def generate_number_parameter(
     input_ids.extend(normalized_ids)
 
 
+def find_unescaped_quote(text: str) -> int:
+    """Finds the index of the first unescaped double quote."""
+    escaped = False
+    for i, char in enumerate(text):
+        if char == '\\' and not escaped:
+            escaped = True
+        elif char == '"' and not escaped:
+            return i
+        else:
+            escaped = False
+    return -1
+
+
+def get_allowed_string_tokens(
+    validator: StringValidator,
+    current_segment: str,
+    token_dict: dict[int, str]
+) -> list[int]:
+    """Finds valid next tokens for a string, allowing a terminating quote."""
+    allowed_ids = []
+    for token_id, token_str in token_dict.items():
+        candidate = current_segment + token_str
+        quote_idx = find_unescaped_quote(candidate)
+        if quote_idx != -1:
+            payload = candidate[:quote_idx]
+            if validator.is_partial(payload):
+                allowed_ids.append(token_id)
+        else:
+            if validator.is_partial(candidate):
+                allowed_ids.append(token_id)
+    return allowed_ids
+
+
+def generate_string_parameter(
+    input_ids: list[int],
+    model: Small_LLM_Model,
+    token_dict: dict[int, str],
+    eos_token_id: int
+) -> None:
+    """Generates a JSON string parameter and appends it to the context."""
+    validator = StringValidator()
+    current_segment = ""
+    generated_token_count = 0
+    input_ids.extend(get_input_ids(model, '"'))
+    while True:
+        args = validator, current_segment, token_dict
+        allowed_ids = get_allowed_string_tokens(*args)
+        if not allowed_ids:
+            break
+        logits = model.get_logits_from_input_ids(input_ids)
+        next_token_id = get_masked_argmax(logits, allowed_ids)
+        if next_token_id == eos_token_id:
+            break
+        token_str = token_dict[next_token_id]
+        candidate = current_segment + token_str
+        quote_idx = find_unescaped_quote(candidate)
+        if quote_idx != -1:
+            valid_payload = candidate[:quote_idx]
+            added_text = valid_payload[len(current_segment):]
+            current_segment += added_text
+            break
+        input_ids.append(next_token_id)
+        current_segment += token_str
+        generated_token_count += 1
+    if generated_token_count > 0:
+        del input_ids[-generated_token_count:]
+    clean_ids = get_input_ids(model, current_segment)
+    input_ids.extend(clean_ids)
+    input_ids.extend(get_input_ids(model, '"'))
+
+
 def generate_parameters(
     model: Small_LLM_Model,
     input_ids: list[int],
@@ -189,9 +260,8 @@ def generate_parameters(
             arg = input_ids, model, token_dict, eos_token_id, is_last_parameter
             generate_number_parameter(*arg)
         elif param_type == "string":
-            # Placeholder for your future string generator
-            # generate_string_parameter(...)
-            pass
+            args = input_ids, model, token_dict, eos_token_id
+            generate_string_parameter(*args)
         else:
             raise ValueError(f"Unsupported parameter type: {param_type}")
         delimiter = "}" if is_last_parameter else ", "
@@ -210,6 +280,7 @@ def generate_function_call(
     """Executes the forced-JSON generation phases for a single prompt."""
     prompt = build_prompt(functions, test_case.prompt)
     input_ids: list[int] = get_input_ids(model, prompt)
+    generated_start = len(input_ids)
     args_1 = input_ids, trie, token_dict, eos_token_id, model
     selected_name = select_function_name(*args_1)
     selected_schema = next(fn for fn in functions if fn.name == selected_name)
@@ -217,6 +288,5 @@ def generate_function_call(
     input_ids.extend(transition_ids)
     args_2 = model, input_ids, selected_schema, token_dict, eos_token_id
     generate_parameters(*args_2)
-    full_output = model.decode(input_ids) + "}"
-    json_start_index = full_output.rfind('{"name": "')
-    return full_output[json_start_index:]
+    generated = model.decode(input_ids[generated_start:])
+    return '{"name": "' + generated + '}'
