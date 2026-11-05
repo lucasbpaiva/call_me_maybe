@@ -4,6 +4,7 @@ from src.constraints import PrefixTree
 
 @pytest.fixture
 def function_names() -> list[str]:
+    """Defines list of function names for the tests."""
     return [
         "fn_add",
         "fn_add_numbers",
@@ -14,6 +15,7 @@ def function_names() -> list[str]:
 
 @pytest.fixture
 def trie(function_names: list[str]) -> PrefixTree:
+    """Instantiates and populates a PrefixTree with the function names."""
     tree = PrefixTree()
     for name in function_names:
         tree.insert(name)
