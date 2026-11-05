@@ -44,6 +44,14 @@ def parse_argv() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Executes the constrained JSON generation pipeline.
+
+    Parses command-line arguments, loads function schemas and input prompts,
+    initializes the language model and constraint engines (PrefixTree,
+    vocabulary), and iterates through the test cases. For each prompt, it
+    generates a guaranteed-valid JSON function call, parses it, and writes the
+    consolidated results to the specified output file.
+    """
     args = parse_argv()
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
