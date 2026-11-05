@@ -132,3 +132,41 @@ class NumberValidator:
             False otherwise.
         """
         return bool(self.complete_pattern.match(text))
+
+
+class StringValidator:
+    """Validates partial JSON string contents during token generation.
+
+    This state machine uses a regular expression to enforce strict JSON string
+    formatting rules. It prevents the inclusion of raw control characters
+    (U+0000 to U+001F), rejects invalid backslash escapes, and allows valid
+    mid-generation partial escapes.
+
+    Attributes:
+        partial_pattern (re.Pattern): Regex pattern matching valid incomplete
+            JSON string bodies and partial escape sequences.
+    """
+
+    def __init__(self) -> None:
+        """Initializes the StringValidator with the compiled regex pattern."""
+        # Matches valid JSON string bodies
+        # (no unescaped quotes, no control chars U+0000-U+001F)
+        self.partial_pattern = re.compile(
+            r'^(?:[^"\\\x00-\x1f]|\\["\\/bfnrt]|\\u[0-9a-fA-F]{4})*'
+            r'(?:\\(?:["\\/bfnrt]|u[0-9a-fA-F]{0,3})?)?$'
+        )
+
+    def is_partial(self, text: str) -> bool:
+        """Determines if text is a valid partial JSON string payload.
+
+        Args:
+            text: The current string payload being generated (excluding the
+                opening and closing double quotes).
+
+        Returns:
+            True if text represents a valid partial JSON string or is empty,
+            False if it contains illegal control characters or invalid escapes.
+        """
+        if not text:
+            return True
+        return bool(self.partial_pattern.match(text))
