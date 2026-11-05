@@ -121,7 +121,7 @@ def generate_number_parameter(
     token_dict: dict[int, str],
     eos_token_id: int,
     is_last_parameter: bool
-) -> str:
+) -> None:
     """Generates a constrained numeric value for a JSON parameter.
 
     Uses a state machine to evaluate and mask model logits, forcing the
@@ -140,13 +140,11 @@ def generate_number_parameter(
         is_last_parameter: Indicates if this is the final parameter in
             the schema. Determines whether the termination delimiter should be
             a closing brace ('}') or a comma (',').
-
-    Returns:
-        The fully generated, parseable number string (e.g., "40", "-3.14").
     """
     validator = NumberValidator()
     current_segment = ""
     closing_delimiter = "}" if is_last_parameter else ","
+    generated_token_count = 0
     while True:
         args = validator, current_segment, token_dict, is_last_parameter
         allowed_ids = get_allowed_number_tokens(*args)
@@ -161,7 +159,12 @@ def generate_number_parameter(
             break
         input_ids.append(next_token_id)
         current_segment += token_str
-    return current_segment
+        generated_token_count += 1
+    if generated_token_count > 0:
+        del input_ids[-generated_token_count:]
+    normalized_str = str(float(current_segment))
+    normalized_ids = get_input_ids(model, normalized_str)
+    input_ids.extend(normalized_ids)
 
 
 def generate_parameters(
