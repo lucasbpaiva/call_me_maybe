@@ -238,6 +238,61 @@ def generate_string_parameter(
     input_ids.extend(get_input_ids(model, '"'))
 
 
+def get_allowed_boolean_tokens(
+    trie: PrefixTree,
+    current_segment: str,
+    token_dict: dict[int, str],
+    is_last_parameter: bool
+) -> list[int]:
+    """Finds valid next tokens for a boolean value."""
+    allowed_ids = []
+    is_complete = trie.search(current_segment)
+    closing_delimiter = "}" if is_last_parameter else ","
+    for token_id, token_str in token_dict.items():
+        candidate = current_segment + token_str
+        if trie.is_prefix(candidate):
+            allowed_ids.append(token_id)
+            continue
+        if is_complete and token_str.startswith(closing_delimiter):
+            allowed_ids.append(token_id)
+    return allowed_ids
+
+
+def generate_boolean_parameter(
+    input_ids: list[int],
+    model: Small_LLM_Model,
+    token_dict: dict[int, str],
+    eos_token_id: int,
+    is_last_parameter: bool
+) -> None:
+    """Generates a constrained boolean ('true' or 'false') and appends it."""
+    boolean_trie = PrefixTree()
+    boolean_trie.insert("true")
+    boolean_trie.insert("false")
+    current_segment = ""
+    closing_delimiter = "}" if is_last_parameter else ","
+    generated_token_count = 0
+    while True:
+        args = boolean_trie, current_segment, token_dict, is_last_parameter
+        allowed_ids = get_allowed_boolean_tokens(*args)
+        if not allowed_ids:
+            break
+        logits = model.get_logits_from_input_ids(input_ids)
+        next_token_id = get_masked_argmax(logits, allowed_ids)
+        if next_token_id == eos_token_id:
+            break
+        token_str = token_dict[next_token_id]
+        if closing_delimiter in token_str:
+            break
+        input_ids.append(next_token_id)
+        current_segment += token_str
+        generated_token_count += 1
+    if generated_token_count > 0:
+        del input_ids[-generated_token_count:]
+    clean_ids = get_input_ids(model, current_segment)
+    input_ids.extend(clean_ids)
+
+
 def generate_parameters(
     model: Small_LLM_Model,
     input_ids: list[int],
@@ -257,11 +312,14 @@ def generate_parameters(
         input_ids.extend(get_input_ids(model, key_text))
         param_type = param_details.arg_type
         if param_type == "number":
-            arg = input_ids, model, token_dict, eos_token_id, is_last_parameter
-            generate_number_parameter(*arg)
+            a_0 = input_ids, model, token_dict, eos_token_id, is_last_parameter
+            generate_number_parameter(*a_0)
         elif param_type == "string":
-            args = input_ids, model, token_dict, eos_token_id
-            generate_string_parameter(*args)
+            a_1 = input_ids, model, token_dict, eos_token_id
+            generate_string_parameter(*a_1)
+        elif param_type == "boolean":
+            a_2 = input_ids, model, token_dict, eos_token_id, is_last_parameter
+            generate_boolean_parameter(*a_2)
         else:
             raise ValueError(f"Unsupported parameter type: {param_type}")
         delimiter = "}" if is_last_parameter else ", "
