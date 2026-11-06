@@ -1,3 +1,4 @@
+import time
 import json
 import logging
 import argparse
@@ -58,6 +59,7 @@ def main() -> None:
     generates a guaranteed-valid JSON function call, parses it, and writes the
     consolidated results to the specified output file.
     """
+    start_time = time.perf_counter()
     args = parse_argv()
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -98,6 +100,9 @@ def main() -> None:
             continue
     formatted_json = json.dumps(results, indent=2)
     output_path.write_text(formatted_json)
+    end_time = time.perf_counter()
+    elapsed_time = end_time - start_time
+    print(f"Run completed in {elapsed_time:.2f} seconds")
 
 
 if __name__ == "__main__":
