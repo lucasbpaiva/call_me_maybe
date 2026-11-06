@@ -1,11 +1,17 @@
 import json
+import logging
 import argparse
+from typing import Any
 from pathlib import Path
 from llm_sdk import Small_LLM_Model
 from src.constraints import PrefixTree
-from src.generator import generate_function_call
 from src.vocab import build_token_dictionary
+from src.generator import generate_function_call
 from src.io_utils import load_function_definitions, load_input_prompts
+logging.basicConfig(
+    level=logging.ERROR,
+    format="%(levelname)s: %(message)s"
+)
 
 
 def parse_argv() -> argparse.Namespace:
@@ -63,17 +69,33 @@ def main() -> None:
     model = Small_LLM_Model()
     token_dict, eos_token_id = build_token_dictionary(model)
     results = []
-    for test_case in test_cases:
-        generated_json = generate_function_call(
-            model, test_case, functions, eos_token_id, trie, token_dict
-        )
-        parsed_call = json.loads(generated_json)
-        final_obj = {
-            "prompt": test_case.prompt,
-            "name": parsed_call.get("name"),
-            "parameters": parsed_call.get("parameters", {})
-        }
-        results.append(final_obj)
+    for i, test_case in enumerate(test_cases):
+        try:
+            arg = model, test_case, functions, eos_token_id, trie, token_dict
+            generated_json = generate_function_call(*arg)
+            parsed_call = json.loads(generated_json)
+            final_obj = {
+                "prompt": test_case.prompt,
+                "name": parsed_call.get("name"),
+                "parameters": parsed_call.get("parameters", {})
+            }
+            results.append(final_obj)
+        except Exception as err:
+            logging.error(
+                f"Failed mid-generation on test case {i}.\n"
+                f"Prompt: '{test_case.prompt}'\n"
+                f"Error: {type(err).__name__}: {err}\n"
+            )
+            # Create a strictly typed fallback object to ensure the final JSON
+            # file still maps 1:1 with the input length.
+            error_obj: dict[str, Any] = {
+                "prompt": test_case.prompt,
+                "name": None,
+                "parameters": {},
+                "error": str(err)
+            }
+            results.append(error_obj)
+            continue
     formatted_json = json.dumps(results, indent=2)
     output_path.write_text(formatted_json)
 
