@@ -1,0 +1,36 @@
+[
+  {
+    "name": "fn_set_file_visibility",
+    "description": "Changes the visibility settings of a specified file.",
+    "parameters": {
+      "filename": {
+        "type": "string",
+        "description": "The name of the file."
+      },
+      "is_hidden": {
+        "type": "boolean",
+        "description": "Set to true to hide the file, false to make it visible."
+      }
+    },
+	"returns": {
+		"type": "null"
+	}
+  },
+  {
+    "name": "fn_create_system_user",
+    "description": "Creates a new user in the system.",
+    "parameters": {
+      "username": {
+        "type": "string",
+        "description": "The username for the new account."
+      },
+      "grant_sudo": {
+        "type": "boolean",
+        "description": "Whether to grant the user superuser (sudo) privileges."
+      }
+    },
+	"returns": {
+		"type": "null"
+	}
+  }
+]

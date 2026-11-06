@@ -1,0 +1,11 @@
+[
+  {
+    "prompt": "Make 'public_keys.txt' visible to everyone."
+  },
+  {
+    "prompt": "Create a new user account for 'lbalderr' and give him admin/sudo rights."
+  },
+  {
+    "prompt": "Add a standard user 'guest_user'. Do not give them superuser access."
+  }
+]
