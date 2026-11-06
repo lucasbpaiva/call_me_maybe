@@ -41,6 +41,9 @@ def load_function_definitions(filename: str) -> list[FunctionDefinition]:
     if not isinstance(data, list):
         sys.stderr.write("Expected a JSON array at the root\n")
         sys.exit(1)
+    if not data:
+        sys.stderr.write("Error: Function definitions array is empty\n")
+        sys.exit(1)
     validated_functions = []
     try:
         for item in data:
