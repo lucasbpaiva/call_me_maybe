@@ -8,7 +8,9 @@ def build_prompt(
 ) -> str:
     """Formats function schemas and user prompt into a raw ChatML string."""
     functions_dict = [
-        fn.model_dump(by_alias=True, exclude_none=True) for fn in functions
+        fn.model_dump(
+            by_alias=True, exclude_none=True, exclude={"returns"}
+        ) for fn in functions
     ]
     functions_json = json.dumps(functions_dict, separators=(",", ":"))
     system_content = (
