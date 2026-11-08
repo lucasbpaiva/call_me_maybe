@@ -1,5 +1,6 @@
 import sys
 import numpy as np
+from typing import Callable
 from llm_sdk import Small_LLM_Model
 from src.prompt import build_prompt
 from src.constraints import PrefixTree, NumberValidator, StringValidator
@@ -13,51 +14,150 @@ def get_input_ids(model: Small_LLM_Model, raw_prompt: str) -> list[int]:
     return input_ids
 
 
-def get_allowed_token_ids(
-    trie: PrefixTree,
-    current_prefix: str,
-    token_dict: dict[int, str]
-) -> list[int]:
-    """Evaluates the vocabulary against the Trie to find valid next tokens."""
-    allowed_ids: list[int] = []
+def make_name_predicate(
+    trie: PrefixTree, current_prefix: str
+) -> Callable[[str], bool]:
+    """Creates a predicate to validate tokens for the function name segment.
+
+    Args:
+        trie: The Trie containing allowed function names.
+        current_prefix: The function name prefix generated so far.
+
+    Returns:
+        A function that accepts a token string and returns True if appending
+        it forms a valid prefix or a correctly terminated name.
+    """
     is_complete_name = trie.search(current_prefix)
-    for token_id, token_str in token_dict.items():
+
+    def is_allowed(token_str: str) -> bool:
         if is_complete_name and token_str.startswith('"'):
-            allowed_ids.append(token_id)
-            continue
-        candidate_string = current_prefix + token_str
-        if trie.is_prefix(candidate_string):
-            allowed_ids.append(token_id)
-    return allowed_ids
+            return True
+        return trie.is_prefix(current_prefix + token_str)
+
+    return is_allowed
 
 
-def get_allowed_number_tokens(
+def make_number_predicate(
     validator: NumberValidator,
     current_segment: str,
-    token_dict: dict[int, str],
     is_last_parameter: bool
-) -> list[int]:
-    """Finds valid next tokens for a number or its termination delimiter."""
-    allowed_ids: list[int] = []
+) -> Callable[[str], bool]:
+    """Creates a predicate to validate tokens for a JSON number parameter.
+
+    Args:
+        validator: The state machine enforcing JSON number syntax.
+        current_segment: The number string generated so far.
+        is_last_parameter: Indicates if the delimiter should be a brace ('}')
+            rather than a comma (',').
+
+    Returns:
+        A function that returns True if the token maintains a valid partial
+        number or legally terminates a complete number.
+    """
     is_currently_complete = validator.is_complete(current_segment)
     closing_delimiter = "}" if is_last_parameter else ","
-    for token_id, token_str in token_dict.items():
-        candidate_string = current_segment + token_str
-        if validator.is_partial(candidate_string):
-            allowed_ids.append(token_id)
-            continue
+
+    def is_allowed(token_str: str) -> bool:
+        candidate = current_segment + token_str
+        if validator.is_partial(candidate):
+            return True
         if is_currently_complete and token_str.startswith(closing_delimiter):
-            allowed_ids.append(token_id)
-    return allowed_ids
+            return True
+        return False
+
+    return is_allowed
 
 
-def get_masked_argmax(logits: list[float], allowed_ids: list[int]) -> int:
-    """Applies a boolean mask and returns the highest allowed token ID."""
-    logits_array = np.array(logits)
-    mask = np.zeros_like(logits_array, dtype=bool)
-    mask[allowed_ids] = True
-    logits_array[~mask] = -np.inf
-    return int(np.argmax(logits_array))
+def make_string_predicate(
+    validator: StringValidator,
+    current_segment: str
+) -> Callable[[str], bool]:
+    """Creates a predicate to validate tokens for a JSON string parameter.
+
+    Args:
+        validator: The state machine enforcing JSON string escapes.
+        current_segment: The string payload generated so far.
+
+    Returns:
+        A function that returns True if the token maintains valid string
+        formatting, even if it contains a mid-token terminating quote.
+    """
+    def is_allowed(token_str: str) -> bool:
+        candidate = current_segment + token_str
+        quote_idx = find_unescaped_quote(candidate)
+        if quote_idx != -1:
+            payload = candidate[:quote_idx]
+            return validator.is_partial(payload)
+        return validator.is_partial(candidate)
+
+    return is_allowed
+
+
+def make_boolean_predicate(
+    trie: PrefixTree,
+    current_segment: str,
+    is_last_parameter: bool
+) -> Callable[[str], bool]:
+    """Creates a predicate to validate tokens for a JSON boolean parameter.
+
+    Args:
+        trie: The Trie containing the exact literals 'true' and 'false'.
+        current_segment: The boolean sequence generated so far.
+        is_last_parameter: Indicates if the delimiter should be a brace ('}')
+            rather than a comma (',').
+
+    Returns:
+        A function that returns True if the token builds towards
+        a valid boolean literal or safely terminates a completed one.
+    """
+    is_complete = trie.search(current_segment)
+    closing_delimiter = "}" if is_last_parameter else ","
+
+    def is_allowed(token_str: str) -> bool:
+        candidate = current_segment + token_str
+        if trie.is_prefix(candidate):
+            return True
+        if is_complete and token_str.startswith(closing_delimiter):
+            return True
+        return False
+
+    return is_allowed
+
+
+def pick_best_allowed(
+    logits: list[float],
+    token_dict: dict[int, str],
+    is_allowed: Callable[[str], bool]
+) -> int:
+    """Sorts and evaluates logits to find the highest-scoring valid token.
+
+    Sorts the model's output logits to lazily evaluate candidate tokens against
+    the provided predicate. This prevents scanning the entire vocabulary,
+    significantly improving performance by short-circuiting as soon as a valid
+    token is found. Empty string tokens are automatically ignored to prevent
+    infinite generation loops.
+
+    Args:
+        logits: The raw logits or probabilities over the vocabulary.
+        token_dict: A mapping of token IDs to their string representations.
+        is_allowed: A predicate function that takes a candidate token string
+            and returns True if it maintains valid syntax.
+
+    Returns:
+        The token ID of the highest-scoring valid candidate.
+
+    Raises:
+        ValueError: If no token in the vocabulary satisfies the predicate.
+    """
+    scores = np.asarray(logits, dtype=np.float32)
+    sorted_indices = np.argsort(-scores)
+    for token_id in sorted_indices:
+        token_str = token_dict.get(int(token_id))
+        if not token_str:
+            continue
+        if is_allowed(token_str):
+            return int(token_id)
+    raise ValueError("No valid token found in the vocabulary.")
 
 
 def select_function_name(
@@ -94,13 +194,9 @@ def select_function_name(
         generated_count = 0
         current_segment = ""
         while generated_count < max_length:
-            allowed_ids = get_allowed_token_ids(
-                trie, current_segment, token_dict
-            )
-            if not allowed_ids:
-                break
             logits: list[float] = model.get_logits_from_input_ids(input_ids)
-            next_token_id = get_masked_argmax(logits, allowed_ids)
+            is_allowed = make_name_predicate(trie, current_segment)
+            next_token_id = pick_best_allowed(logits, token_dict, is_allowed)
             if next_token_id == eos_token_id:
                 break
             token_str = token_dict[next_token_id]
@@ -146,12 +242,11 @@ def generate_number_parameter(
     closing_delimiter = "}" if is_last_parameter else ","
     generated_token_count = 0
     while True:
-        args = validator, current_segment, token_dict, is_last_parameter
-        allowed_ids = get_allowed_number_tokens(*args)
-        if not allowed_ids:
-            break
         logits = model.get_logits_from_input_ids(input_ids)
-        next_token_id = get_masked_argmax(logits, allowed_ids)
+        is_allowed = make_number_predicate(
+            validator, current_segment, is_last_parameter
+        )
+        next_token_id = pick_best_allowed(logits, token_dict, is_allowed)
         if next_token_id == eos_token_id:
             break
         token_str = token_dict[next_token_id]
@@ -180,26 +275,6 @@ def find_unescaped_quote(text: str) -> int:
     return -1
 
 
-def get_allowed_string_tokens(
-    validator: StringValidator,
-    current_segment: str,
-    token_dict: dict[int, str]
-) -> list[int]:
-    """Finds valid next tokens for a string, allowing a terminating quote."""
-    allowed_ids = []
-    for token_id, token_str in token_dict.items():
-        candidate = current_segment + token_str
-        quote_idx = find_unescaped_quote(candidate)
-        if quote_idx != -1:
-            payload = candidate[:quote_idx]
-            if validator.is_partial(payload):
-                allowed_ids.append(token_id)
-        else:
-            if validator.is_partial(candidate):
-                allowed_ids.append(token_id)
-    return allowed_ids
-
-
 def generate_string_parameter(
     input_ids: list[int],
     model: Small_LLM_Model,
@@ -212,12 +287,9 @@ def generate_string_parameter(
     generated_token_count = 0
     input_ids.extend(get_input_ids(model, '"'))
     while True:
-        args = validator, current_segment, token_dict
-        allowed_ids = get_allowed_string_tokens(*args)
-        if not allowed_ids:
-            break
         logits = model.get_logits_from_input_ids(input_ids)
-        next_token_id = get_masked_argmax(logits, allowed_ids)
+        is_allowed = make_string_predicate(validator, current_segment)
+        next_token_id = pick_best_allowed(logits, token_dict, is_allowed)
         if next_token_id == eos_token_id:
             break
         token_str = token_dict[next_token_id]
@@ -238,26 +310,6 @@ def generate_string_parameter(
     input_ids.extend(get_input_ids(model, '"'))
 
 
-def get_allowed_boolean_tokens(
-    trie: PrefixTree,
-    current_segment: str,
-    token_dict: dict[int, str],
-    is_last_parameter: bool
-) -> list[int]:
-    """Finds valid next tokens for a boolean value."""
-    allowed_ids = []
-    is_complete = trie.search(current_segment)
-    closing_delimiter = "}" if is_last_parameter else ","
-    for token_id, token_str in token_dict.items():
-        candidate = current_segment + token_str
-        if trie.is_prefix(candidate):
-            allowed_ids.append(token_id)
-            continue
-        if is_complete and token_str.startswith(closing_delimiter):
-            allowed_ids.append(token_id)
-    return allowed_ids
-
-
 def generate_boolean_parameter(
     input_ids: list[int],
     model: Small_LLM_Model,
@@ -273,12 +325,10 @@ def generate_boolean_parameter(
     closing_delimiter = "}" if is_last_parameter else ","
     generated_token_count = 0
     while True:
-        args = boolean_trie, current_segment, token_dict, is_last_parameter
-        allowed_ids = get_allowed_boolean_tokens(*args)
-        if not allowed_ids:
-            break
         logits = model.get_logits_from_input_ids(input_ids)
-        next_token_id = get_masked_argmax(logits, allowed_ids)
+        args = boolean_trie, current_segment, is_last_parameter
+        is_allowed = make_boolean_predicate(*args)
+        next_token_id = pick_best_allowed(logits, token_dict, is_allowed)
         if next_token_id == eos_token_id:
             break
         token_str = token_dict[next_token_id]
