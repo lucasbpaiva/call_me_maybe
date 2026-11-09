@@ -8,7 +8,15 @@ from src.models import TestCase, FunctionDefinition
 
 
 def get_input_ids(model: Small_LLM_Model, raw_prompt: str) -> list[int]:
-    """Tokenizes the raw prompt using the public model API."""
+    """Tokenizes a raw string into a list of input IDs using the model.
+
+    Args:
+        model: The language model instance used for encoding.
+        raw_prompt: The raw text string to be tokenized.
+
+    Returns:
+        A list of integer token IDs representing the input text.
+    """
     input_tensor = model.encode(raw_prompt)
     input_ids: list[int] = input_tensor.tolist()[0]
     return input_ids
@@ -263,7 +271,19 @@ def generate_number_parameter(
 
 
 def find_unescaped_quote(text: str) -> int:
-    """Finds the index of the first unescaped double quote."""
+    """Finds the index of the first unescaped double quote in a string.
+
+    Iterates through the string evaluating backslash escape sequences to
+    differentiate between literal quotes inside a JSON string and the
+    structural quote that terminates the string.
+
+    Args:
+        text: The string to search through.
+
+    Returns:
+        The integer index of the first unescaped double quote, or -1 if
+        no unescaped quote is found.
+    """
     escaped = False
     for i, char in enumerate(text):
         if char == '\\' and not escaped:
@@ -281,7 +301,20 @@ def generate_string_parameter(
     token_dict: dict[int, str],
     eos_token_id: int
 ) -> None:
-    """Generates a JSON string parameter and appends it to the context."""
+    """Generates a constrained string value for a JSON parameter.
+
+    Uses a state machine to evaluate and mask model logits, forcing the
+    LLM to output only tokens that form a valid JSON string with correct
+    escaping. The generation loop terminates when an unescaped double
+    quote is produced.
+
+    Args:
+        input_ids: The current sequence of token IDs representing the context.
+        model: The language model instance used for inference.
+        token_dict: A mapping of token IDs to their corresponding string
+            representations from the model's vocabulary.
+        eos_token_id: The token ID representing the end of a sequence.
+    """
     validator = StringValidator()
     current_segment = ""
     generated_token_count = 0
@@ -317,7 +350,22 @@ def generate_boolean_parameter(
     eos_token_id: int,
     is_last_parameter: bool
 ) -> None:
-    """Generates a constrained boolean ('true' or 'false') and appends it."""
+    """Generates a constrained boolean value ('true' or 'false').
+
+    Uses a local PrefixTree containing only 'true' and 'false' to evaluate
+    model logits. The generation loop terminates when the model outputs
+    the appropriate closing delimiter.
+
+    Args:
+        input_ids: The current sequence of token IDs representing the context.
+        model: The language model instance used for inference.
+        token_dict: A mapping of token IDs to their corresponding string
+            representations from the model's vocabulary.
+        eos_token_id: The token ID representing the end of a sequence.
+        is_last_parameter: Indicates if this is the final parameter in
+            the schema. Determines whether the termination delimiter should be
+            a closing brace ('}') or a comma (',').
+    """
     boolean_trie = PrefixTree()
     boolean_trie.insert("true")
     boolean_trie.insert("false")
@@ -350,7 +398,24 @@ def generate_parameters(
     token_dict: dict[int, str],
     eos_token_id: int
 ) -> None:
-    """Orchestrates parameter generation based on the function schema."""
+    """Orchestrates parameter generation based on the function schema.
+
+    Iterates through the required parameters of the selected function schema,
+    injecting the appropriate JSON keys and delegating the value generation
+    to the type-specific generator loops (string, number, or boolean).
+
+    Args:
+        model: The language model instance used for inference.
+        input_ids: The current sequence of context token IDs.
+        schema: The definition of the selected function,
+            including its expected parameters.
+        token_dict: A mapping of token IDs to their corresponding
+            string representations.
+        eos_token_id: The token ID representing the end of a sequence.
+
+    Raises:
+        ValueError: If the schema defines a parameter type not supported.
+    """
     parameters = schema.parameters if schema.parameters else {}
     param_items = list(parameters.items())
     if not param_items:
@@ -385,7 +450,27 @@ def generate_function_call(
     token_dict: dict[int, str],
     max_length: int = 100
 ) -> str:
-    """Executes the forced-JSON generation phases for a single prompt."""
+    """Executes the forced-JSON generation phases for a single prompt.
+
+    Constructs the prompt, forces the opening JSON syntax into the context,
+    and sequentially drives the constrained generation of the function name
+    and its parameters. Slices the raw model output to return only the
+    cleanly formatted JSON object.
+
+    Args:
+        model: The language model instance used for inference.
+        test_case: The input test case containing the user prompt.
+        functions: A list of all available function definitions.
+        eos_token_id: The token ID representing the end of a sequence.
+        trie: The PrefixTree populated with all valid function names.
+        token_dict: A mapping of token IDs to their corresponding
+            string representations.
+        max_length: The maximum number of tokens to allow for the function
+            name segment. Defaults to 100.
+
+    Returns:
+        The final generated JSON string representing the function call.
+    """
     prompt = build_prompt(functions, test_case.prompt)
     input_ids: list[int] = get_input_ids(model, prompt)
     generated_start = len(input_ids)

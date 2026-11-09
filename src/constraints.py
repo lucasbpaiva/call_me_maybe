@@ -2,7 +2,14 @@ import re
 
 
 class Node:
-    """Represents a single character node within the PrefixTree."""
+    """Represents a single character node within the PrefixTree.
+
+    Attributes:
+        children: A mapping of single characters to their corresponding
+            child nodes.
+        is_leaf: Indicates whether this node represents the final
+            character of a complete inserted key.
+    """
     def __init__(self) -> None:
         """Initializes a new Trie node with empty children."""
         self.children: dict[str, 'Node'] = {}
@@ -10,10 +17,19 @@ class Node:
 
 
 class PrefixTree:
-    """A Trie DS for efficient prefix validation and character lookups."""
+    """A Trie data structure for string prefix validation and lookups.
+
+    This tree is used to incrementally validate character sequences during
+    constrained generation, ensuring that generated tokens strictly adhere
+    to a set of predefined valid strings (such as function names or the
+    literals 'true' and 'false').
+
+    Attributes:
+        root: The root node of the prefix tree.
+    """
     def __init__(self) -> None:
         """Initializes the PrefixTree with an empty root node."""
-        self.root = Node()
+        self.root: Node = Node()
 
     def insert(self, key: str) -> None:
         """Inserts a complete string key into the prefix tree.

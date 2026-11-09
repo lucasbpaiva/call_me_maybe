@@ -1,33 +1,48 @@
-from typing import Literal, Any
+from typing import Literal
 from pydantic import BaseModel, Field
 JsonPrimitive = Literal["string", "number", "boolean", "object", "array"]
 
 
 class ParameterDefinition(BaseModel):
-    """Defines a single parameter for a callable function."""
+    """Defines a single parameter within a function's parameters dictionary.
+
+    Attributes:
+        arg_type: The expected JSON data type for this parameter, which is
+            aliased to the 'type' field during serialization and validation.
+    """
     arg_type: JsonPrimitive = Field(alias="type")
 
 
 class ReturnDefinition(BaseModel):
-    """Defines the return type schema."""
+    """Defines the expected return type for a function schema.
+
+    Attributes:
+        return_type: The data type returned by the function, which is aliased
+            to the 'type' field during serialization and validation.
+    """
     return_type: str = Field(alias="type")
 
 
 class FunctionDefinition(BaseModel):
-    """Defines the schema of an available function for the LLM."""
-    name: str = Field(pattern=r"^fn_")
+    """Represents a complete function schema available for the LLM to call.
+
+    Attributes:
+        name: The name of the function.
+        description: A natural language description of the function's purpose.
+        parameters: A mapping of parameter names to their respective type
+            definitions. Defaults to an empty dictionary.
+        returns: The definition of the function's return type.
+    """
+    name: str
     description: str
     parameters: dict[str, ParameterDefinition] = Field(default_factory=dict)
     returns: ReturnDefinition
 
 
 class TestCase(BaseModel):
-    """Defines a single test case from the input JSON."""
-    prompt: str
+    """Represents a single input prompt for evaluation.
 
-
-class OutputRecord(BaseModel):
-    """Represents the final structured function call extracted from the LLM."""
+    Attributes:
+        prompt: The natural language instruction or query provided by the user.
+    """
     prompt: str
-    name: str = Field(pattern=r"^fn_")
-    parameters: dict[str, Any] = Field(default_factory=dict)

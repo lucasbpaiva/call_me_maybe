@@ -23,8 +23,8 @@ def parse_argv() -> argparse.Namespace:
     function schemas, input prompts, and the output record destination.
 
     Returns:
-        argparse.Namespace: An object containing the parsed command-line
-        arguments as attributes (functions_definition, input, and output).
+        An object containing the parsed command-line arguments as attributes
+        (functions_definition, input, and output).
     """
     parser = argparse.ArgumentParser(
         description="Execute JSON-constrained LLM inference."

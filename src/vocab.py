@@ -12,15 +12,15 @@ def build_token_dictionary(
     locates the required stopping token ID (`<|endoftext|>` or `<|im_end|>`).
 
     Args:
-        model (Small_LLM_Model): The initialized SDK model instance used to
-            fetch the vocabulary path and decode individual tokens.
+        model: The initialized SDK model instance used to fetch the
+            vocabulary path and decode individual tokens.
 
     Returns:
-        Tuple[Dict[int, str], int]: A tuple containing:
-            - token_table (Dict[int, str]): A mapping of integer token IDs to
-              their decoded string values.
-            - eos_token_id (int): The integer ID representing the End of
-              Sequence token.
+        A tuple containing:
+            - token_table: A mapping of integer token IDs to their
+                decoded string values.
+            - eos_token_id: The integer ID representing the End of
+                Sequence token.
 
     Raises:
         RuntimeError: If the vocabulary JSON file cannot be opened or parsed.

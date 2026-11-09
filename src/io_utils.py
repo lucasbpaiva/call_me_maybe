@@ -15,10 +15,10 @@ def load_function_definitions(filename: str) -> list[FunctionDefinition]:
     program exits cleanly to prevent downstream crashes.
 
     Args:
-        filename (str): The file path to the JSON document to be loaded.
+        filename: The file path to the JSON document to be loaded.
 
     Returns:
-        list[FunctionDefinition]: A list of validated function definitions.
+        A list of validated function definitions.
 
     Raises:
         SystemExit: If the file cannot be found, is empty, contains malformed
@@ -64,11 +64,11 @@ def load_input_prompts(filename: str) -> list[TestCase]:
     program exits cleanly to prevent downstream crashes.
 
     Args:
-        filename (str): The file path to the JSON document containing the
+        filename: The file path to the JSON document containing the
             input prompts.
 
     Returns:
-        list[TestCase]: A list of strictly validated test cases.
+        A list of strictly validated test cases.
 
     Raises:
         SystemExit: If the file cannot be found, is empty, contains malformed
