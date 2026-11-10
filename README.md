@@ -70,43 +70,41 @@ The core engine relies on **Constrained Decoding via Logit Masking**. Instead of
 
 | Optimization | Effect |
 |---|---|
-| Lazy masking (`pick_best_allowed`): sort logits once, test candidates in descending order against a per-token predicate | Replaces a ~150k-token scan per step with `[X]` candidate checks on average |
-| Compact prompt: one signature line per function instead of indented JSON, `returns` omitted | Prompt reduced from ~465 to `[N]` tokens, forward pass from ~1.67 s to `[T]` s |
-| `[If implemented]` Skipping the model when the next text is forced (trie leaf or single-child path) | Forward passes per prompt reduced from ~12 to `[M]` |
-| `[If implemented]` Cached encodings for constant text (separators, parameter keys) | Removes repeated tokenizer calls |
+| Lazy masking (`pick_best_allowed`): sort logits once, test candidates in descending order against a per-token predicate | Replaces a ~150k-token scan per step with 1~5 candidate checks on average |
+| Compact prompt: Dropped the JSON indentation, effectively removing spaces, tabs and newlines the model doesn't need. Also omitted the `returns` parameter | Prompt reduced from ~465 to ~238 tokens, forward pass from ~1.67 s to 0.95 s |
 
-**Results.**
 
-| Version | Total time (`[K]` prompts, school machine) | Forward passes | Time per pass |
+**Results:**
+
+| Version | Total time (11 prompts, school machine) | Forward passes | Time per pass |
 |---|---|---|---|
 | Baseline | 278 s | 130 | 1.67 s |
-| Final | `[ ]` s | `[ ]` | `[ ]` s |
+| Final | 135 s | 137 | 0.95 s |
 
-**Limits.** Speed still depends on the hardware (CPU `float32` at school, MPS on Apple Silicon), on the number and verbosity of function definitions (they extend the prompt), and on how many tokens a string or number takes. Measured time per prompt is `[ ]` s on average. Extrapolating linearly, the 5-minute budget supports roughly `[ ]` prompts of this complexity.
+**Limits.** Speed still depends on the hardware (CPU `float32` at 42 clusters, MPS on Apple Silicon), on the number and verbosity of function definitions (they extend the prompt), and on how many tokens a string or number takes. Measured time per prompt is 12.31 s on average. Extrapolating linearly, the 5-minute budget supports roughly 24 prompts of this complexity.
 
 ### Accuracy
 
 Two different properties are measured separately.
 
-**Structural validity: 100% by construction.** The JSON skeleton (keys, braces, separators) is injected by the orchestrator rather than generated. Values are produced only from tokens that the number, string, boolean, or trie predicates accept, so the model has no way to emit a malformed value. Every output was parsed with `json.loads` and validated against the Pydantic schema during evaluation, with `[0]` failures over `[N]` prompts.
+**Structural validity: 100% by construction.** The JSON skeleton (keys, braces, separators) is injected by the orchestrator rather than generated. Values are produced only from tokens that the number, string, boolean, or trie predicates accept, so the model has no way to emit a malformed value. Every output was parsed with `json.loads` and validated against the Pydantic schema during evaluation, with 0 failures over 42 prompts.
 
-**Semantic correctness: measured, not guaranteed.** Constraining the format cannot make the model choose the right function or extract the right argument. On the `[N]`-prompt evaluation set (`eval_cases.json`):
+**Semantic correctness: measured, not guaranteed.** Constraining the format cannot make the model choose the right function or extract the right argument. On the custom 42-prompt evaluation set (`eval_cases.json`):
 
 | Metric | Result |
 |---|---|
-| Routing accuracy (correct function) | `[ ]%` |
-| Parameter accuracy (correct arguments, types included) | `[ ]%` |
-| Strict accuracy (both correct, no failure) | `[ ]%` |
+| Routing accuracy (correct function) | 92.9% |
+| Parameter accuracy (correct arguments, types included) | 76.2% |
+| Strict accuracy (both correct, no failure) | 76.2% |
 
-Failure modes observed: dropped negative signs on numbers (mitigated through the prompt), `[add others from your eval, e.g. ambiguous prompts routed to a similar function, string arguments with extra words]`. These come from the 0.6B model's limited reasoning, not from the decoder, so the constraint layer cannot fix them.
+Failure modes observed incclude: dropped negative signs on numbers, couldn't generate a regex pattern for extracting emails from a string. These come from the 0.6B model's limited reasoning, not from the decoder, so the constraint layer cannot fix them.
 
 ### Reliability
 
-- **No infinite loops:** every generation loop has a token cap, and empty-string tokens are rejected by the predicates, so a token that adds no text can never be chosen repeatedly.
 - **Fault isolation:** an exception on one prompt is caught, logged with the offending prompt, and recorded in the result (`name = None` plus an error trace), so the remaining prompts still run.
 - **Input robustness:** missing files, empty files, invalid JSON, wrong shapes, and an empty function list produce a clear error message instead of a traceback.
 - **Resource handling:** files are opened with context managers, and the output directory is created if missing.
-- **Known limits:** `[state honestly, e.g. only string, number, and boolean parameter types are supported; unsupported types raise a clear error, not a crash]`.
+- **Known limits:** only string, number, and boolean parameter types are supported.
 
 ## Challenges Faced
 
