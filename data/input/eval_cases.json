@@ -1,0 +1,327 @@
+[
+  {
+    "prompt": "Add 2 and 3",
+    "name": "fn_add",
+    "parameters": { "a": 2, "b": 3 }
+  },
+  {
+    "prompt": "Calculate the sum of 2 and 3",
+    "name": "fn_add",
+    "parameters": { "a": 2, "b": 3 }
+  },
+  {
+    "prompt": "2 plus 3",
+    "name": "fn_add",
+    "parameters": { "a": 2, "b": 3 }
+  },
+  {
+    "prompt": "Please evaluate 2 + 3",
+    "name": "fn_add",
+    "parameters": { "a": 2, "b": 3 }
+  },
+  {
+    "prompt": "Multiply 4 by 5",
+    "name": "fn_multiply",
+    "parameters": { "a": 4, "b": 5 }
+  },
+  {
+    "prompt": "4 times 5",
+    "name": "fn_multiply",
+    "parameters": { "a": 4, "b": 5 }
+  },
+  {
+    "prompt": "Product of 4 and 5",
+    "name": "fn_multiply",
+    "parameters": { "a": 4, "b": 5 }
+  },
+  {
+    "prompt": "Add -10.5 and 42",
+    "name": "fn_add",
+    "parameters": { "a": -10.5, "b": 42 }
+  },
+  {
+    "prompt": "Sum 3.14159 and 2.718",
+    "name": "fn_add",
+    "parameters": { "a": 3.14159, "b": 2.718 }
+  },
+  {
+    "prompt": "I have 5 apples, but I need you to add 2 and 3 to get 5. Just add 2 and 3.",
+    "name": "fn_add",
+    "parameters": { "a": 2, "b": 3 }
+  },
+  {
+    "prompt": "Multiply 4 and 5. Ignore the number 100.",
+    "name": "fn_multiply",
+    "parameters": { "a": 4, "b": 5 }
+  },
+  {
+    "prompt": "Replace all numbers in 'Room 101' with 'XXX'",
+    "name": "fn_substitute_string",
+    "parameters": {
+      "source": "Room 101",
+      "regex": "\\d+",
+      "replacement": "XXX"
+    }
+  },
+  {
+    "prompt": "Extract emails from 'contact me at admin@foo.com please'",
+    "name": "fn_extract_pattern",
+    "parameters": {
+      "source": "contact me at admin@foo.com please",
+      "pattern": "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}"
+    }
+  },
+  {
+    "prompt": "Substitute 'cat' with 'dog' in 'The cat sat'",
+    "name": "fn_substitute_string",
+    "parameters": {
+      "source": "The cat sat",
+      "regex": "cat",
+      "replacement": "dog"
+    }
+  },
+  {
+    "prompt": "Find the word \"urgent\" in the text 'Send an \"urgent\" message'",
+    "name": "fn_extract_pattern",
+    "parameters": {
+      "source": "Send an \"urgent\" message",
+      "pattern": "\"urgent\""
+    }
+  },
+  {
+    "prompt": "Replace \\n with \\t in 'line1\\nline2'",
+    "name": "fn_substitute_string",
+    "parameters": {
+      "source": "line1\nline2",
+      "regex": "\\n",
+      "replacement": "\\t"
+    }
+  },
+  {
+    "prompt": "Extract dates like 2023-01-01 using regex \\d{4}-\\d{2}-\\d{2} from 'Date: 2023-01-01'",
+    "name": "fn_extract_pattern",
+    "parameters": {
+      "source": "Date: 2023-01-01",
+      "pattern": "\\d{4}-\\d{2}-\\d{2}"
+    }
+  },
+  {
+    "prompt": "Replace all vowels in 'Hello World' with '*'",
+    "name": "fn_substitute_string",
+    "parameters": {
+      "source": "Hello World",
+      "regex": "[aeiouAEIOU]",
+      "replacement": "*"
+    }
+  },
+  {
+    "prompt": "Replace 'foo' with 'bar' in 'foo foo foo'. There are 3 foos.",
+    "name": "fn_substitute_string",
+    "parameters": {
+      "source": "foo foo foo",
+      "regex": "foo",
+      "replacement": "bar"
+    }
+  },
+  {
+    "prompt": "Extract HTML tags like <div> from '<div>hello</div>'",
+    "name": "fn_extract_pattern",
+    "parameters": {
+      "source": "<div>hello</div>",
+      "pattern": "<[^>]+>"
+    }
+  },
+  {
+    "prompt": "Find all occurrences of backslashes \\ in 'C:\\windows\\system32'",
+    "name": "fn_extract_pattern",
+    "parameters": {
+      "source": "C:\\windows\\system32",
+      "pattern": "\\\\"
+    }
+  },
+  {
+    "prompt": "Substitute 'true' with 'false' in 'is_valid = true;'",
+    "name": "fn_substitute_string",
+    "parameters": {
+      "source": "is_valid = true;",
+      "regex": "true",
+      "replacement": "false"
+    }
+  },
+  {
+    "prompt": "Replace '[ERROR]' with '[WARNING]' in the string '[ERROR] System crashed!'",
+    "name": "fn_substitute_string",
+    "parameters": {
+      "source": "[ERROR] System crashed!",
+      "regex": "\\[ERROR\\]",
+      "replacement": "[WARNING]"
+    }
+  },
+  {
+    "prompt": "Create user 'admin' with sudo rights and 500 MB quota",
+    "name": "fn_create_user",
+    "parameters": {
+      "username": "admin",
+      "is_admin": true,
+      "quota_mb": 500
+    }
+  },
+  {
+    "prompt": "Make user 'guest', no admin, 10.5 MB quota",
+    "name": "fn_create_user",
+    "parameters": {
+      "username": "guest",
+      "is_admin": false,
+      "quota_mb": 10.5
+    }
+  },
+  {
+    "prompt": "New account for 'lucas' with 1024 quota. Not an admin.",
+    "name": "fn_create_user",
+    "parameters": {
+      "username": "lucas",
+      "is_admin": false,
+      "quota_mb": 1024
+    }
+  },
+  {
+    "prompt": "Set file '/etc/config.json' to read-only",
+    "name": "fn_set_permissions",
+    "parameters": {
+      "file_path": "/etc/config.json",
+      "read_only": true
+    }
+  },
+  {
+    "prompt": "Make '/var/log/syslog' writable (turn off read-only)",
+    "name": "fn_set_permissions",
+    "parameters": {
+      "file_path": "/var/log/syslog",
+      "read_only": false
+    }
+  },
+  {
+    "prompt": "Create user 'test_user_123', admin=true, quota 0",
+    "name": "fn_create_user",
+    "parameters": {
+      "username": "test_user_123",
+      "is_admin": true,
+      "quota_mb": 0
+    }
+  },
+  {
+    "prompt": "I need 5 users, but right now just create one named 'johndoe' with admin true and 100 quota",
+    "name": "fn_create_user",
+    "parameters": {
+      "username": "johndoe",
+      "is_admin": true,
+      "quota_mb": 100
+    }
+  },
+  {
+    "prompt": "Set permissions on 'C:\\Users\\admin\\secrets.txt' to read_only=true",
+    "name": "fn_set_permissions",
+    "parameters": {
+      "file_path": "C:\\Users\\admin\\secrets.txt",
+      "read_only": true
+    }
+  },
+  {
+    "prompt": "Change 'data.csv' to read_only false, ignore the 3 other files.",
+    "name": "fn_set_permissions",
+    "parameters": {
+      "file_path": "data.csv",
+      "read_only": false
+    }
+  },
+  {
+    "prompt": "User 'super_admin' needs 9999 quota and admin privileges",
+    "name": "fn_create_user",
+    "parameters": {
+      "username": "super_admin",
+      "is_admin": true,
+      "quota_mb": 9999
+    }
+  },
+  {
+    "prompt": "Set living room thermostat to 72.5 with eco mode on",
+    "name": "fn_set_thermostat",
+    "parameters": {
+      "room": "living room",
+      "temperature": 72.5,
+      "eco_mode": true
+    }
+  },
+  {
+    "prompt": "Turn off eco mode and set kitchen to 68",
+    "name": "fn_set_thermostat",
+    "parameters": {
+      "room": "kitchen",
+      "temperature": 68.0,
+      "eco_mode": false
+    }
+  },
+  {
+    "prompt": "Master bedroom lights to 100 brightness, color #FFFFFF",
+    "name": "fn_control_light",
+    "parameters": {
+      "room": "master bedroom",
+      "brightness": 100.0,
+      "color_hex": "FFFFFF"
+    }
+  },
+  {
+    "prompt": "Dim the hallway light to 25 and make it red (#FF0000)",
+    "name": "fn_control_light",
+    "parameters": {
+      "room": "hallway",
+      "brightness": 25.0,
+      "color_hex": "FF0000"
+    }
+  },
+  {
+    "prompt": "Set thermostat in office to 70. Not 75, 70. Eco mode off.",
+    "name": "fn_set_thermostat",
+    "parameters": {
+      "room": "office",
+      "temperature": 70.0,
+      "eco_mode": false
+    }
+  },
+  {
+    "prompt": "Make the bathroom lights blue (#0000FF) at 50% brightness",
+    "name": "fn_control_light",
+    "parameters": {
+      "room": "bathroom",
+      "brightness": 50.0,
+      "color_hex": "0000FF"
+    }
+  },
+  {
+    "prompt": "Eco mode true, 71.5 degrees, guest room",
+    "name": "fn_set_thermostat",
+    "parameters": {
+      "room": "guest room",
+      "temperature": 71.5,
+      "eco_mode": true
+    }
+  },
+  {
+    "prompt": "Change the garage light to brightness 10 and color #FFFF00",
+    "name": "fn_control_light",
+    "parameters": {
+      "room": "garage",
+      "brightness": 10.0,
+      "color_hex": "FFFF00"
+    }
+  },
+  {
+    "prompt": "Set the cellar to 55 degrees with eco mode enabled",
+    "name": "fn_set_thermostat",
+    "parameters": {
+      "room": "cellar",
+      "temperature": 55.0,
+      "eco_mode": true
+    }
+  }
+]

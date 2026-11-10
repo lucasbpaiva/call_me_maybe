@@ -1,0 +1,94 @@
+[
+  {
+    "name": "fn_add",
+    "description": "Adds two numbers.",
+    "parameters": {
+      "a": { "type": "number" },
+      "b": { "type": "number" }
+    },
+    "returns": {
+      "type": "number"
+    }
+  },
+  {
+    "name": "fn_multiply",
+    "description": "Multiplies two numbers.",
+    "parameters": {
+      "a": { "type": "number" },
+      "b": { "type": "number" }
+    },
+    "returns": {
+      "type": "number"
+    }
+  },
+  {
+    "name": "fn_substitute_string",
+    "description": "Replaces occurrences of a regex pattern with a replacement string.",
+    "parameters": {
+      "source": { "type": "string" },
+      "regex": { "type": "string" },
+      "replacement": { "type": "string" }
+    },
+    "returns": {
+      "type": "string"
+    }
+  },
+  {
+    "name": "fn_extract_pattern",
+    "description": "Extracts text from a string based on a regex pattern.",
+    "parameters": {
+      "source": { "type": "string" },
+      "pattern": { "type": "string" }
+    },
+    "returns": {
+      "type": "string"
+    }
+  },
+  {
+    "name": "fn_create_user",
+    "description": "Creates a new system user account.",
+    "parameters": {
+      "username": { "type": "string" },
+      "is_admin": { "type": "boolean" },
+      "quota_mb": { "type": "number" }
+    },
+    "returns": {
+      "type": "boolean"
+    }
+  },
+  {
+    "name": "fn_set_permissions",
+    "description": "Sets file permissions.",
+    "parameters": {
+      "file_path": { "type": "string" },
+      "read_only": { "type": "boolean" }
+    },
+    "returns": {
+      "type": "boolean"
+    }
+  },
+  {
+    "name": "fn_set_thermostat",
+    "description": "Sets the room temperature.",
+    "parameters": {
+      "room": { "type": "string" },
+      "temperature": { "type": "number" },
+      "eco_mode": { "type": "boolean" }
+    },
+    "returns": {
+      "type": "boolean"
+    }
+  },
+  {
+    "name": "fn_control_light",
+    "description": "Controls room lighting.",
+    "parameters": {
+      "room": { "type": "string" },
+      "brightness": { "type": "number" },
+      "color_hex": { "type": "string" }
+    },
+    "returns": {
+      "type": "boolean"
+    }
+  }
+]
