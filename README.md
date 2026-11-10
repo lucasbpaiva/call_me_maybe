@@ -108,9 +108,9 @@ Failure modes observed incclude: dropped negative signs on numbers, couldn't gen
 
 ## Challenges Faced
 
-1. **Negative Number Drops:** The LLM frequently dropped negative signs (`-2` became `2.0`). I initially suspected the `NumberValidator`, but the regex already supported optional leading minus signs (`^-?`). The fix involved guiding the model semantically via the system prompt to prioritize the `-` token logit, allowing the validator to accept it.
-2. **Trailing Garbage Data:** Python's `json.loads` crashed with `Extra data` because the generation loop lacked an explicit opening brace prefix. By injecting the `{"name": "` transition manually, I removed the ambiguity.
-3. **macOS PyTorch Multiprocessing Warnings:** Extraneous stderr warnings from PyTorch on M1 Mac polluted the CLI. I silenced these directly via the `logging` module to keep stdout/stderr clean for test evaluation.
+1. **Storage limitation:** The machines at 42 school have limited storage, so I had to implement a Makefile rule to redirect all huggingface and model caches to another directory with enough storage.
+2. **Ensuring 100% valid JSON generation:** While generating forced parts of the JSON structure manually and letting the model pick only the function name and parameters improved performance, I had a lot of bugs where the model would also want to output part of the JSON structure, leading to invalid syntax like extra quotes or braces.
+3. **Improving performance:** Even though the program was returning accurate results, it was running too slow on the 42 school machines, so I had to look for way of optimizing it. In the end I had to shrink the prompt size to reduce the number of tokens for each prompt and improve the token masking step to reduce the time for each forward pass.
 
 ## Testing Strategy
 
