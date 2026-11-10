@@ -448,7 +448,6 @@ def generate_function_call(
     eos_token_id: int,
     trie: PrefixTree,
     token_dict: dict[int, str],
-    max_length: int = 100
 ) -> str:
     """Executes the forced-JSON generation phases for a single prompt.
 
@@ -465,8 +464,6 @@ def generate_function_call(
         trie: The PrefixTree populated with all valid function names.
         token_dict: A mapping of token IDs to their corresponding
             string representations.
-        max_length: The maximum number of tokens to allow for the function
-            name segment. Defaults to 100.
 
     Returns:
         The final generated JSON string representing the function call.
