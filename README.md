@@ -114,16 +114,17 @@ Failure modes observed incclude: dropped negative signs on numbers, couldn't gen
 
 ## Testing Strategy
 
-The implementation is validated via a custom evaluation script (`src/evaluate.py`) against a rigorous ground-truth test suite (`eval_cases.json`).
+The implementation was validated via a custom evaluation script comparing the produced output from (`eval_cases.json`) against the expected results written manually.
 
-- **Test Matrix:** 40+ prompts covering straightforward instructions, ambiguous requests, semantic distractors, and severe edge cases (extremely large numbers like `-1.79e308`, empty strings, unescaped quotes, and complex regex formatting).
+- **Test Matrix:** 40+ prompts covering straightforward instructions, ambiguous requests, semantic distractors.
 - **Metrics Tracked:**
   - *Routing Accuracy:* Did the model pick the correct function schema?
-  - *Parameter Accuracy:* Did the state machine perfectly extract and type the parameters?
+  - *Parameter Accuracy:* Did the state machine perfectly extract the type and parameters?
   - *Strict Accuracy:* Did both succeed without a crash?
-- **Execution:** Run `make eval` to measure wall-clock generation time and immediately print the accuracy delta.
 
 ## Example Usage
+
+To use this program you will need a JSON with an array of objects containing the prompts, like this one:
 
 **Input (`prompts.json`):**
 
@@ -134,6 +135,8 @@ The implementation is validated via a custom evaluation script (`src/evaluate.py
   }
 ]
 ```
+
+You will also need another JSON file with an array of function definitions, they need to respect the schema: `name`, `description`, `parameters`, where `parameters` is an object containing each parameter of the function with an object containing their `type` as the value.
 
 **Functions (`functions.json`):**
 
@@ -149,6 +152,12 @@ The implementation is validated via a custom evaluation script (`src/evaluate.py
     }
   }
 ]
+```
+
+Then run the program via CLI with uv:
+
+```bash
+uv run python -m src --functions_definition functins.json --input prompts.json --output results.json
 ```
 
 **Output:**
@@ -170,9 +179,13 @@ The implementation is validated via a custom evaluation script (`src/evaluate.py
 ## Resources
 
 - **Regex Documentation:** [Python `re` module](https://docs.python.org/3/library/re.html), used to structure the JSON string and number state machines.
-- **Trie Data Structures:** General algorithmic concepts for prefix trees.
-- **AI Usage:** Google Gemini was used as an interactive thought partner and pair-programming assistant during development. Specifically, it was used to:
-  - Brainstorm and architect the `pick_best_allowed` lazy evaluation optimization.
-  - Refine the `StringValidator` regex to handle strict JSON escape sequences.
-  - Generate the edge-case evaluation suite (`eval_cases.json` and `eval_functions.json`).
-  - Scaffold Python Google-style docstrings and identify the root cause of the `Extra data` JSON parsing errors.
+- **GeeksforGeeks:** [Trie Data Structures](https://www.geeksforgeeks.org/dsa/trie-insert-and-search/). General algorithmic concepts for prefix trees.
+- **Constrained Decoding:** [Language AI Handbook](https://mbrenndoerfer.com/writing/constrained-decoding-structured-llm-output) by Michael Brenndoerfer has a really in-depth explanation of the concept with lots of examples.
+
+## AI Usage: 
+
+Google Gemini and Claude were used as interactive thought partners and pair-programming assistants during development. Tasks assisted by AI include:
+  - Architecturing optimizations like the `pick_best_allowed` lazy evaluation.
+  - Designing and implementing the regex based validation classes like `StringValidator` and `NumberValidator`.
+  - Generate prompts and functions for the test suite.
+  - Generating Python Google-style docstrings and helping in writing this README.
