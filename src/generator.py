@@ -1,4 +1,3 @@
-import sys
 import numpy as np
 from typing import Callable
 from llm_sdk import Small_LLM_Model
@@ -198,25 +197,21 @@ def select_function_name(
     Returns:
         The fully generated valid function name (without the closing quote).
     """
-    try:
-        generated_count = 0
-        current_segment = ""
-        while generated_count < max_length:
-            logits: list[float] = model.get_logits_from_input_ids(input_ids)
-            is_allowed = make_name_predicate(trie, current_segment)
-            next_token_id = pick_best_allowed(logits, token_dict, is_allowed)
-            if next_token_id == eos_token_id:
-                break
-            token_str = token_dict[next_token_id]
-            if '"' in token_str:
-                break
-            input_ids.append(next_token_id)
-            current_segment += token_str
-            generated_count += 1
-        return current_segment
-    except Exception as err:
-        print(f"Error during sequence generation: {err}")
-        sys.exit(1)
+    generated_count = 0
+    current_segment = ""
+    while generated_count < max_length:
+        logits: list[float] = model.get_logits_from_input_ids(input_ids)
+        is_allowed = make_name_predicate(trie, current_segment)
+        next_token_id = pick_best_allowed(logits, token_dict, is_allowed)
+        if next_token_id == eos_token_id:
+            break
+        token_str = token_dict[next_token_id]
+        if '"' in token_str:
+            break
+        input_ids.append(next_token_id)
+        current_segment += token_str
+        generated_count += 1
+    return current_segment
 
 
 def generate_number_parameter(
