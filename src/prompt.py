@@ -35,11 +35,11 @@ def build_prompt(
         f"{functions_json}\n\n"
         "Select the appropriate function to answer the user's request. "
         "You must respond with a JSON object in this exact format: "
-        '{"name": "function_name", "parameters": {"param_name": "value"}}'
+        r'{"name": "function_name", "parameters": {"param_name": "value"}}'
     )
     formatted_prompt = (
         f"<|im_start|>system\n{system_content}<|im_end|>\n"
         f"<|im_start|>user\n{user_prompt}<|im_end|>\n"
-        f'<|im_start|>assistant\n{{"name": "'
+        '<|im_start|>assistant\n' + r'{{"name": "'
     )
     return formatted_prompt
