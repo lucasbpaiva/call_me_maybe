@@ -35,9 +35,9 @@ def evaluate_accuracy(generated_path: Path, expected_path: Path) -> None:
     print("--- Evaluation Failures ---")
     for i, (gen, exp) in enumerate(zip(generated_data, expected_data)):
         prompt = exp["prompt"]
-        if "error" in gen and gen["error"]:
+        if gen["name"] == "None":
             errors += 1
-            print(f"[{i}] CRASH: {prompt}\n    Error: {gen['error']}\n")
+            print(f"[{i}] CRASH: {prompt}\n")
             continue
         name_match = gen.get("name") == exp.get("name")
         params_match = gen.get("parameters") == exp.get("parameters")
