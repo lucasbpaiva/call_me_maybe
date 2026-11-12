@@ -46,6 +46,6 @@ def build_token_dictionary(
             "Could not locate EOS token in added_tokens."
         )
     token_table: dict[int, str] = {}
-    for token_str, token_id in raw_vocab.items():
+    for token_id in raw_vocab.values():
         token_table[token_id] = model.decode([token_id])
     return (token_table, eos_token_id)
