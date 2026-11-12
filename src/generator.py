@@ -224,7 +224,8 @@ def generate_number_parameter(
     model: Small_LLM_Model,
     token_dict: dict[int, str],
     eos_token_id: int,
-    is_last_parameter: bool
+    is_last_parameter: bool,
+    max_length: int = 100
 ) -> None:
     """Generates a constrained numeric value for a JSON parameter.
 
@@ -244,16 +245,17 @@ def generate_number_parameter(
         is_last_parameter: Indicates if this is the final parameter in
             the schema. Determines whether the termination delimiter should be
             a closing brace ('}') or a comma (',').
+        max_length: The maximum number of tokens to generate for this segment.
+            Defaults to 100.
     """
     validator = NumberValidator()
     current_segment = ""
     closing_delimiter = "}" if is_last_parameter else ","
     generated_token_count = 0
-    while True:
+    while generated_token_count < max_length:
         logits = model.get_logits_from_input_ids(input_ids)
-        is_allowed = make_number_predicate(
-            validator, current_segment, is_last_parameter
-        )
+        args = validator, current_segment, is_last_parameter
+        is_allowed = make_number_predicate(*args)
         next_token_id = pick_best_allowed(logits, token_dict, is_allowed)
         if next_token_id == eos_token_id:
             break
@@ -299,7 +301,8 @@ def generate_string_parameter(
     input_ids: list[int],
     model: Small_LLM_Model,
     token_dict: dict[int, str],
-    eos_token_id: int
+    eos_token_id: int,
+    max_length: int = 100
 ) -> None:
     """Generates a constrained string value for a JSON parameter.
 
@@ -314,12 +317,14 @@ def generate_string_parameter(
         token_dict: A mapping of token IDs to their corresponding string
             representations from the model's vocabulary.
         eos_token_id: The token ID representing the end of a sequence.
+        max_length: The maximum number of tokens to generate for this segment.
+            Defaults to 100.
     """
     validator = StringValidator()
     current_segment = ""
     generated_token_count = 0
     input_ids.extend(get_input_ids(model, '"'))
-    while True:
+    while generated_token_count < max_length:
         logits = model.get_logits_from_input_ids(input_ids)
         is_allowed = make_string_predicate(validator, current_segment)
         next_token_id = pick_best_allowed(logits, token_dict, is_allowed)
@@ -348,7 +353,8 @@ def generate_boolean_parameter(
     model: Small_LLM_Model,
     token_dict: dict[int, str],
     eos_token_id: int,
-    is_last_parameter: bool
+    is_last_parameter: bool,
+    max_length: int = 100
 ) -> None:
     """Generates a constrained boolean value ('true' or 'false').
 
@@ -365,6 +371,8 @@ def generate_boolean_parameter(
         is_last_parameter: Indicates if this is the final parameter in
             the schema. Determines whether the termination delimiter should be
             a closing brace ('}') or a comma (',').
+        max_length: The maximum number of tokens to generate for this segment.
+            Defaults to 100.
     """
     boolean_trie = PrefixTree()
     boolean_trie.insert("true")
@@ -372,7 +380,7 @@ def generate_boolean_parameter(
     current_segment = ""
     closing_delimiter = "}" if is_last_parameter else ","
     generated_token_count = 0
-    while True:
+    while generated_token_count < max_length:
         logits = model.get_logits_from_input_ids(input_ids)
         args = boolean_trie, current_segment, is_last_parameter
         is_allowed = make_boolean_predicate(*args)
