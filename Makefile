@@ -12,6 +12,9 @@ VENV = .venv
 PYTHON = uv run python
 FLAKE8 = uv run flake8
 MYPY = uv run mypy
+EV_INPUT = data/input/eval_cases.json
+EV_FUNC = data/input/eval_functions.json
+EV_OUTPUT = data/output/eval_results.json
 
 .PHONY: install run debug clean fclean re test lint lint-strict
 
@@ -63,3 +66,9 @@ lint-strict: setup-env
 
 test: setup-env
 	@uv run pytest tests/
+
+eval: setup-env
+	@echo "Generating outputs..."
+	@uv run python -m src --input $(EV_INPUT) --functions_definition $(EV_FUNC) --output $(EV_OUTPUT)
+	@echo "\nEvaluating accuracy..."
+	@uv run python src/evaluate.py --generated $(EV_OUTPUT) --expected $(EV_INPUT)
