@@ -88,13 +88,12 @@ def main() -> None:
                 f"Prompt: '{test_case.prompt}'\n"
                 f"Error: {type(err).__name__}: {err}\n"
             )
-            # Create a strictly typed fallback object to ensure the final JSON
+            # Create a fallback object to ensure the final JSON
             # file still maps 1:1 with the input length.
             error_obj: dict[str, Any] = {
                 "prompt": test_case.prompt,
-                "name": None,
+                "name": "None",
                 "parameters": {},
-                "error": str(err)
             }
             results.append(error_obj)
             continue
