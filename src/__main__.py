@@ -4,6 +4,7 @@ import logging
 import argparse
 from typing import Any
 from pathlib import Path
+from src.models import TestCase
 from llm_sdk import Small_LLM_Model
 from src.constraints import PrefixTree
 from src.vocab import build_token_dictionary
@@ -71,32 +72,45 @@ def main() -> None:
     model = Small_LLM_Model()
     token_dict, eos_token_id = build_token_dictionary(model)
     results = []
+    max_retries = 2
     for i, test_case in enumerate(test_cases):
-        try:
-            arg = model, test_case, functions, eos_token_id, trie, token_dict
-            generated_json = generate_function_call(*arg)
-            parsed_call = json.loads(generated_json)
-            final_obj = {
-                "prompt": test_case.prompt,
-                "name": parsed_call.get("name"),
-                "parameters": parsed_call.get("parameters", {})
-            }
-            results.append(final_obj)
-        except Exception as err:
-            logging.error(
-                f"Failed mid-generation on test case {i}.\n"
-                f"Prompt: '{test_case.prompt}'\n"
-                f"Error: {type(err).__name__}: {err}\n"
-            )
-            # Create a fallback object to ensure the final JSON
-            # file still maps 1:1 with the input length.
-            error_obj: dict[str, Any] = {
-                "prompt": test_case.prompt,
-                "name": "None",
-                "parameters": {},
-            }
-            results.append(error_obj)
-            continue
+        for attempt in range(max_retries):
+            try:
+                current_prompt = test_case.prompt
+                if attempt > 0:
+                    current_prompt += (
+                        "\n\n[System Note: Your previous attempt produced an "
+                        "invalid structure. Strictly follow the schema.]"
+                    )
+                current_case = TestCase(prompt=current_prompt)
+                generated_json = generate_function_call(
+                    model, current_case, functions,
+                    eos_token_id, trie, token_dict
+                )
+                parsed_call = json.loads(generated_json)
+                final_obj = {
+                    "prompt": test_case.prompt,
+                    "name": parsed_call.get("name"),
+                    "parameters": parsed_call.get("parameters", {})
+                }
+                results.append(final_obj)
+                break
+            except Exception as err:
+                if attempt < max_retries - 1:
+                    continue
+                logging.error(
+                    f"Failed mid-generation on test case {i}.\n"
+                    f"Prompt: '{test_case.prompt}'\n"
+                    f"Error: {type(err).__name__}: {err}\n"
+                )
+                # Create a fallback object to ensure the final JSON
+                # file still maps 1:1 with the input length.
+                error_obj: dict[str, Any] = {
+                    "prompt": test_case.prompt,
+                    "name": "None",
+                    "parameters": {},
+                }
+                results.append(error_obj)
     formatted_json = json.dumps(results, indent=2)
     output_path.write_text(formatted_json)
     end_time = time.perf_counter()
