@@ -11,6 +11,7 @@ dependencies = [
     "huggingface-hub>=2.3.0",
     "numpy>=2.2.6",
     "pydantic>=2.14.1",
+    "regex>=2026.9.29",
     "torch>=2.14.1",
     "transformers>=5.20.2",
 ]
