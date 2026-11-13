@@ -13,6 +13,6 @@ def test_bytemap_roundtrip() -> None:
     assert mapper.byte_to_char[10] == "Ċ"
     assert len(set(mapper.byte_to_char.values())) == 256
     all_bytes = bytes(range(256))
-    unicode_str = mapper.bytes_to_string(all_bytes)
-    restored_bytes = mapper.string_to_bytes(unicode_str)
+    unicode_str = mapper.bytes_to_str(all_bytes)
+    restored_bytes = mapper.str_to_bytes(unicode_str)
     assert restored_bytes == all_bytes
