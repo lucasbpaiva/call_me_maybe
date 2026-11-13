@@ -78,26 +78,57 @@ class ByteMap(BaseModel):
 
 
 class AddedToken(BaseModel):
-    """Represents a special or added token defined outside the BPE vocab."""
+    """Represents a special or added token defined outside the BPE vocabulary.
+
+    Attributes:
+        id: The unique integer token ID assigned to this added token.
+        content: The literal text string represented by the token.
+        special: Indicates whether this token is treated as a control or
+            special token that can be omitted during decoding.
+    """
     id: int
     content: str
     special: bool
 
 
 class BPEModelConfig(BaseModel):
-    """Validates the core BPE structures from tokenizer.json."""
+    """Validates the core Byte Pair Encoding structures from tokenizer.json.
+
+    Attributes:
+        vocab: A dictionary mapping BPE internal symbol strings to integer
+            token IDs.
+        merges: An ordered list of symbol pairs defining the BPE merge priority
+            rules.
+    """
     vocab: dict[str, int]
     merges: list[list[str]]
 
 
 class TokenizerData(BaseModel):
-    """Validates the root structure of tokenizer.json."""
+    """Validates the root structure of a Hugging Face tokenizer.json file.
+
+    Attributes:
+        model: The core BPE model config containing vocabulary and merges.
+        added_tokens: A list of special or supplementary tokens defined outside
+            the base vocabulary.
+    """
     model: BPEModelConfig
     added_tokens: list[AddedToken]
 
 
 class Tokenizer(BaseModel):
-    """Main Tokenizer class handling BPE decode operations."""
+    """Main Tokenizer class handling BPE vocabulary lookups and decoding.
+
+    Attributes:
+        byte_map: Bidirectional lookup table converting between raw bytes and
+            BPE printable Unicode symbols.
+        token_to_id: Forward lookup mapping BPE internal symbol strings to
+            integer token IDs.
+        id_to_token: Reverse lookup mapping integer token IDs to BPE internal
+            symbol strings.
+        special_tokens: A dictionary mapping special token IDs to their
+            corresponding AddedToken metadata.
+    """
     byte_map: ByteMap = Field(default_factory=ByteMap)
     token_to_id: dict[str, int] = Field(default_factory=dict)
     id_to_token: dict[int, str] = Field(default_factory=dict)
@@ -105,7 +136,15 @@ class Tokenizer(BaseModel):
 
     @classmethod
     def load_from_file(cls, path: str | Path) -> "Tokenizer":
-        """Loads, validates, and initializes the tokenizer from a JSON file."""
+        """Loads, validates, and initializes the tokenizer from a JSON file.
+
+        Args:
+            path: File path to the tokenizer.json configuration file.
+
+        Returns:
+            An initialized Tokenizer instance populated with vocabulary and
+            special token tables.
+        """
         with open(path, "r", encoding="utf-8") as f:
             raw_data = json.loads(f.read())
         parsed = TokenizerData.model_validate(raw_data)
@@ -118,7 +157,25 @@ class Tokenizer(BaseModel):
         )
 
     def decode(self, ids: list[int], skip_special_tokens: bool = True) -> str:
-        """Decodes a list of token IDs back into a standard UTF-8 string."""
+        """Decodes a sequence of token IDs back into a standard UTF-8 string.
+
+        Accumulates consecutive ordinary BPE symbols and converts them into a
+        contiguous byte stream before decoding UTF-8, preserving multi-byte
+        characters that span across multiple tokens. Added tokens bypass byte
+        mapping and are injected directly as literal text.
+
+        Args:
+            ids: A list of integer token IDs to decode.
+            skip_special_tokens: If True, omits tokens marked as special from
+                the final output string. Defaults to True.
+
+        Returns:
+            The reconstructed UTF-8 text string.
+
+        Raises:
+            ValueError: If an encountered token ID does not exist in either the
+                base vocabulary or special tokens table.
+        """
         decoded_text = ""
         current_symbols: list[str] = []
 
