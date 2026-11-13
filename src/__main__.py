@@ -77,6 +77,7 @@ def main() -> None:
         for attempt in range(max_retries):
             try:
                 current_prompt = test_case.prompt
+                print(f'Prompt {i + 1}: "{current_prompt}"')
                 if attempt > 0:
                     current_prompt += (
                         "\n\n[System Note: Your previous attempt produced an "
@@ -99,7 +100,7 @@ def main() -> None:
                 if attempt < max_retries - 1:
                     continue
                 logging.error(
-                    f"Failed mid-generation on test case {i}.\n"
+                    f"Failed mid-generation on test case {i + 1}.\n"
                     f"Prompt: '{test_case.prompt}'\n"
                     f"Error: {type(err).__name__}: {err}\n"
                 )
