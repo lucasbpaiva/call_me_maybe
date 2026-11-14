@@ -1,7 +1,68 @@
 import json
+import regex  # type: ignore[import-untyped, unused-ignore]
 from typing import Any
 from pathlib import Path
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, PrivateAttr
+
+
+QWEN_PRETOKENIZER_PATTERN = (
+    r"(?i:'s|'t|'re|'ve|'m|'ll|'d)"  # English contractions as separate pieces
+    # A word, with one optional leading non-letter attached
+    r"|[^\r\n\p{L}\p{N}]?\p{L}+"
+    r"|\p{N}"  # One digit per piece, confirming how numbers tokenize
+    # Runs of punctuation or symbols, optional leading space,
+    # trailing newlines absorbed
+    r"| ?[^\s\p{L}\p{N}]+[\r\n]*"
+    r"|\s*[\r\n]+"  # Whitespace that contains newlines
+    # A whitespace run minus its last character when a non-space follows,
+    # so that last space can attach to the next word through rule 2
+    r"|\s+(?!\S)"
+    r"|\s+"  # Any remaining whitespace
+)
+
+
+class PreTokenizer(BaseModel):
+    """Splits ordinary text into isolated pieces using Qwen's regex rules.
+
+    Attributes:
+        pattern: The regular expression defining token boundaries.
+    """
+
+    pattern: str = Field(default=QWEN_PRETOKENIZER_PATTERN)
+    _compiled: Any = PrivateAttr()
+
+    def model_post_init(self, _context: Any) -> None:
+        """Compiles the regex pattern once upon model initialization.
+
+        Args:
+            __context: Optional validation context passed by Pydantic.
+        """
+        self._compiled = regex.compile(self.pattern)
+
+    def pre_tokenize(self, text: str) -> list[str]:
+        """Splits a normalized, non-special text chunk into isolated words.
+
+        Args:
+            text: Ordinary input text with special tokens already extracted.
+
+        Returns:
+            A list of contiguous substrings covering the entire input text.
+        """
+        if not text:
+            return []
+        pieces: list[str] = self._compiled.findall(text)
+        return pieces
+
+
+def _extract_regex_pattern(raw_data: dict[str, Any]) -> str:
+    """Extracts the Split regex pattern from raw tokenizer.json data."""
+    pre_tok = raw_data.get("pre_tokenizer", {})
+    for step in pre_tok.get("pretokenizers", []):
+        if step.get("type") == "Split":
+            pattern_obj = step.get("pattern", {})
+            if "Regex" in pattern_obj:
+                return str(pattern_obj["Regex"])
+    raise ValueError("Could not find Split Regex in tokenizer.json")
 
 
 def build_byte_to_unicode() -> dict[int, str]:
@@ -200,6 +261,7 @@ class Tokenizer(BaseModel):
     """
     byte_map: ByteMap = Field(default_factory=ByteMap)
     bpe: BPE = Field(default_factory=BPE)
+    pre_tokenizer: PreTokenizer = Field(default_factory=PreTokenizer)
     token_to_id: dict[str, int] = Field(default_factory=dict)
     id_to_token: dict[int, str] = Field(default_factory=dict)
     special_tokens: dict[int, AddedToken] = Field(default_factory=dict)
@@ -227,6 +289,7 @@ class Tokenizer(BaseModel):
         id_to_token = {v: k for k, v in token_to_id.items()}
         special_tokens = {t.id: t for t in parsed.added_tokens}
         bpe = BPE(merges=parsed.model.merges)
+        pre_tokenizer = PreTokenizer(pattern=_extract_regex_pattern(raw_data))
         if len(id_to_token) != len(token_to_id):
             raise ValueError("Duplicate token IDs detected in vocabulary.")
         if set(id_to_token).intersection(special_tokens):
@@ -241,7 +304,8 @@ class Tokenizer(BaseModel):
         return cls(
             byte_map=byte_map,
             bpe=bpe,
-            token_to_id=parsed.model.vocab,
+            pre_tokenizer=pre_tokenizer,
+            token_to_id=token_to_id,
             id_to_token=id_to_token,
             special_tokens=special_tokens
         )
