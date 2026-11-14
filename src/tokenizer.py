@@ -1,7 +1,7 @@
 import json
 from typing import Any
 from pathlib import Path
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 
 def build_byte_to_unicode() -> dict[int, str]:
@@ -145,12 +145,30 @@ class Tokenizer(BaseModel):
             An initialized Tokenizer instance populated with vocabulary and
             special token tables.
         """
-        with open(path, "r", encoding="utf-8") as f:
-            raw_data = json.loads(f.read())
-        parsed = TokenizerData.model_validate(raw_data)
-        id_to_token = {v: k for k, v in parsed.model.vocab.items()}
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                raw_data = json.load(f)
+            parsed = TokenizerData.model_validate(raw_data)
+        except (OSError, json.JSONDecodeError, ValidationError) as err:
+            msg = f"Failed to load or validate tokenizer from '{path}': {err}"
+            raise RuntimeError(msg) from err
+        byte_map = ByteMap()
+        token_to_id = parsed.model.vocab
+        id_to_token = {v: k for k, v in token_to_id.items()}
         special_tokens = {t.id: t for t in parsed.added_tokens}
+        if len(id_to_token) != len(token_to_id):
+            raise ValueError("Duplicate token IDs detected in vocabulary.")
+        if set(id_to_token).intersection(special_tokens):
+            msg = "Overlap detected between vocab IDs and added_tokens."
+            raise ValueError(msg)
+        valid_alphabet = set(byte_map.char_to_byte)
+        for token_str in token_to_id:
+            if not set(token_str).issubset(valid_alphabet):
+                raise ValueError(
+                    f"Vocab token {token_str!r} contains unmapped characters."
+                )
         return cls(
+            byte_map=byte_map,
             token_to_id=parsed.model.vocab,
             id_to_token=id_to_token,
             special_tokens=special_tokens
