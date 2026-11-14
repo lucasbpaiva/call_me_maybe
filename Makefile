@@ -16,7 +16,7 @@ EV_INPUT = data/input/eval_cases.json
 EV_FUNC = data/input/eval_functions.json
 EV_OUTPUT = data/output/eval_results.json
 
-.PHONY: install run debug clean fclean re test lint lint-strict
+.PHONY: install run debug clean fclean re test lint lint-strict setup-env eval
 
 setup-env:
 	@mkdir -p $(HF_HOME)
@@ -70,6 +70,6 @@ test: setup-env
 
 eval: setup-env
 	@echo "Generating outputs..."
-	@uv run python -m src --input $(EV_INPUT) --functions_definition $(EV_FUNC) --output $(EV_OUTPUT)
+	@$(PYTHON) -m src --input $(EV_INPUT) --functions_definition $(EV_FUNC) --output $(EV_OUTPUT)
 	@echo "\nEvaluating accuracy..."
-	@uv run python src/evaluate.py --generated $(EV_OUTPUT) --expected $(EV_INPUT)
+	@$(PYTHON) src/evaluate.py --generated $(EV_OUTPUT) --expected $(EV_INPUT)
