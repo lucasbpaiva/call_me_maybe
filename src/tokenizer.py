@@ -1,8 +1,71 @@
+import re
 import json
 import regex  # type: ignore[import-untyped, unused-ignore]
+import unicodedata
 from typing import Any
 from pathlib import Path
 from pydantic import BaseModel, Field, ValidationError, PrivateAttr
+
+
+class AddedToken(BaseModel):
+    """Represents a special or added token defined outside the BPE vocabulary.
+
+    Attributes:
+        id: The unique integer token ID assigned to this added token.
+        content: The literal text string represented by the token.
+        special: Indicates whether this token is treated as a control or
+            special token that can be omitted during decoding.
+    """
+    id: int
+    content: str
+    special: bool
+
+
+class SpecialTokens(BaseModel):
+    """Stores added tokens and splits input text around literal token matches.
+
+    Attributes:
+        tokens: List of AddedToken entries parsed from tokenizer.json.
+        id_to_token: Lookup mapping token IDs to AddedToken metadata.
+        str_to_id: Lookup mapping literal token strings to their integer IDs.
+    """
+    tokens: list[AddedToken] = Field(default_factory=list)
+    id_to_token: dict[int, AddedToken] = Field(default_factory=dict)
+    str_to_id: dict[str, int] = Field(default_factory=dict)
+    _pattern: re.Pattern[str] | None = PrivateAttr(default=None)
+
+    def model_post_init(self, _context: Any) -> None:
+        """Builds bidirectional lookups and compiles a longest-first regex."""
+        self.id_to_token = {t.id: t for t in self.tokens}
+        self.str_to_id = {t.content: t.id for t in self.tokens}
+        if self.tokens:
+            ordered = sorted(
+                (t.content for t in self.tokens),
+                key=len,
+                reverse=True,
+            )
+            joined = "|".join(re.escape(tok) for tok in ordered)
+            self._pattern = re.compile(f"({joined})")
+
+    def split(self, text: str) -> list[tuple[str, bool]]:
+        """Splits text into ordinary chunks and matched added tokens.
+
+        Args:
+            text: Raw input string to partition.
+
+        Returns:
+            A list of (chunk, is_special) tuples preserving original order.
+        """
+        if not text:
+            return []
+        if self._pattern is None:
+            return [(text, False)]
+        pieces: list[tuple[str, bool]] = []
+        for part in self._pattern.split(text):
+            if not part:
+                continue
+            pieces.append((part, part in self.str_to_id))
+        return pieces
 
 
 QWEN_PRETOKENIZER_PATTERN = (
@@ -138,20 +201,6 @@ class ByteMap(BaseModel):
         return bytes(self.char_to_byte[c] for c in text)
 
 
-class AddedToken(BaseModel):
-    """Represents a special or added token defined outside the BPE vocabulary.
-
-    Attributes:
-        id: The unique integer token ID assigned to this added token.
-        content: The literal text string represented by the token.
-        special: Indicates whether this token is treated as a control or
-            special token that can be omitted during decoding.
-    """
-    id: int
-    content: str
-    special: bool
-
-
 class BPEModelConfig(BaseModel):
     """Validates the core Byte Pair Encoding structures from tokenizer.json.
 
@@ -264,7 +313,7 @@ class Tokenizer(BaseModel):
     pre_tokenizer: PreTokenizer = Field(default_factory=PreTokenizer)
     token_to_id: dict[str, int] = Field(default_factory=dict)
     id_to_token: dict[int, str] = Field(default_factory=dict)
-    special_tokens: dict[int, AddedToken] = Field(default_factory=dict)
+    special_tokens: SpecialTokens = Field(default_factory=SpecialTokens)
 
     @classmethod
     def load_from_file(cls, path: str | Path) -> "Tokenizer":
@@ -287,12 +336,12 @@ class Tokenizer(BaseModel):
         byte_map = ByteMap()
         token_to_id = parsed.model.vocab
         id_to_token = {v: k for k, v in token_to_id.items()}
-        special_tokens = {t.id: t for t in parsed.added_tokens}
+        special_tokens = SpecialTokens(tokens=parsed.added_tokens)
         bpe = BPE(merges=parsed.model.merges)
         pre_tokenizer = PreTokenizer(pattern=_extract_regex_pattern(raw_data))
         if len(id_to_token) != len(token_to_id):
             raise ValueError("Duplicate token IDs detected in vocabulary.")
-        if set(id_to_token).intersection(special_tokens):
+        if set(id_to_token).intersection(special_tokens.id_to_token):
             msg = "Overlap detected between vocab IDs and added_tokens."
             raise ValueError(msg)
         valid_alphabet = set(byte_map.char_to_byte)
@@ -309,6 +358,29 @@ class Tokenizer(BaseModel):
             id_to_token=id_to_token,
             special_tokens=special_tokens
         )
+
+    def encode(self, text: str) -> list[int]:
+        """Encodes a raw string into a sequence of BPE and special token IDs.
+
+        Args:
+            text: The input text string to tokenize.
+
+        Returns:
+            A list of integer token IDs matching the model vocabulary.
+        """
+        if not text:
+            return []
+        ids: list[int] = []
+        for chunk, is_special in self.special_tokens.split(text):
+            if is_special:
+                ids.append(self.special_tokens.str_to_id[chunk])
+                continue
+            normalized = unicodedata.normalize("NFC", chunk)
+            for word in self.pre_tokenizer.pre_tokenize(normalized):
+                mapped = self.byte_map.bytes_to_str(word.encode("utf-8"))
+                symbols = self.bpe.merge_word(mapped)
+                ids.extend(self.token_to_id[sym] for sym in symbols)
+        return ids
 
     def decode(self, ids: list[int], skip_special_tokens: bool = True) -> str:
         """Decodes a sequence of token IDs back into a standard UTF-8 string.
@@ -341,8 +413,8 @@ class Tokenizer(BaseModel):
                 current_symbols = []
 
         for token_id in ids:
-            if token_id in self.special_tokens:
-                token_data = self.special_tokens[token_id]
+            if token_id in self.special_tokens.id_to_token:
+                token_data = self.special_tokens.id_to_token[token_id]
                 if skip_special_tokens and token_data.special:
                     continue
                 flush_symbols()
