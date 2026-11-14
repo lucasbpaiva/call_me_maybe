@@ -19,3 +19,4 @@ venv/
 
 # Output files
 data/output/
+tests/golden.json
