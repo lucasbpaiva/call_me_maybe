@@ -65,6 +65,7 @@ lint-strict: setup-env
 	@$(MYPY) --strict src/ tests/
 
 test: setup-env
+	@$(PYTHON) -m tests.generate_golden
 	@uv run pytest tests/
 
 eval: setup-env
