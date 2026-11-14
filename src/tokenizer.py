@@ -116,6 +116,75 @@ class TokenizerData(BaseModel):
     added_tokens: list[AddedToken]
 
 
+class BPE(BaseModel):
+    """Executes deterministic Byte Pair Encoding merges on mapped words.
+
+    Attributes:
+        merges: Ordered list of symbol pairs defining merge priority.
+        ranks: Lookup mapping adjacent symbol pairs to their priority rank.
+        cache: Memoization table mapping mapped input words to merged symbols.
+    """
+
+    merges: list[list[str]] = Field(default_factory=list)
+    ranks: dict[tuple[str, str], int] = Field(default_factory=dict)
+    cache: dict[str, list[str]] = Field(default_factory=dict)
+
+    def model_post_init(self, _context: Any) -> None:
+        """Builds a pair-to-rank lookup table from the ordered merges list.
+
+        Args:
+            __context: Optional validation context passed by Pydantic.
+        """
+        self.ranks = {
+            (pair[0], pair[1]): rank
+            for rank, pair in enumerate(self.merges)
+        }
+
+    def merge_word(self, word: str) -> list[str]:
+        """Repeatedly merges the lowest-rank adjacent pair in a mapped word.
+
+        Args:
+            word: A single pre-tokenized word already converted via ByteMap.
+
+        Returns:
+            A list of merged BPE vocabulary symbol strings.
+        """
+        if not word:
+            return []
+        if word in self.cache:
+            return self.cache[word]
+        symbols = list(word)
+        while len(symbols) > 1:
+            best_pair: tuple[str, str] | None = None
+            best_rank: int | None = None
+            for i in range(len(symbols) - 1):
+                pair = (symbols[i], symbols[i + 1])
+                rank = self.ranks.get(pair)
+                if rank is not None and (
+                    best_rank is None or rank < best_rank
+                ):
+                    best_rank = rank
+                    best_pair = pair
+            if best_pair is None:
+                break
+            merged: list[str] = []
+            i = 0
+            while i < len(symbols):
+                if (
+                    i < len(symbols) - 1
+                    and symbols[i] == best_pair[0]
+                    and symbols[i + 1] == best_pair[1]
+                ):
+                    merged.append(best_pair[0] + best_pair[1])
+                    i += 2
+                else:
+                    merged.append(symbols[i])
+                    i += 1
+            symbols = merged
+        self.cache[word] = symbols
+        return symbols
+
+
 class Tokenizer(BaseModel):
     """Main Tokenizer class handling BPE vocabulary lookups and decoding.
 
@@ -130,6 +199,7 @@ class Tokenizer(BaseModel):
             corresponding AddedToken metadata.
     """
     byte_map: ByteMap = Field(default_factory=ByteMap)
+    bpe: BPE = Field(default_factory=BPE)
     token_to_id: dict[str, int] = Field(default_factory=dict)
     id_to_token: dict[int, str] = Field(default_factory=dict)
     special_tokens: dict[int, AddedToken] = Field(default_factory=dict)
@@ -156,6 +226,7 @@ class Tokenizer(BaseModel):
         token_to_id = parsed.model.vocab
         id_to_token = {v: k for k, v in token_to_id.items()}
         special_tokens = {t.id: t for t in parsed.added_tokens}
+        bpe = BPE(merges=parsed.model.merges)
         if len(id_to_token) != len(token_to_id):
             raise ValueError("Duplicate token IDs detected in vocabulary.")
         if set(id_to_token).intersection(special_tokens):
@@ -169,6 +240,7 @@ class Tokenizer(BaseModel):
                 )
         return cls(
             byte_map=byte_map,
+            bpe=bpe,
             token_to_id=parsed.model.vocab,
             id_to_token=id_to_token,
             special_tokens=special_tokens
