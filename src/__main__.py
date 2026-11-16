@@ -6,6 +6,7 @@ from typing import Any
 from pathlib import Path
 from src.models import TestCase
 from llm_sdk import Small_LLM_Model
+from src.tokenizer import Tokenizer
 from src.constraints import PrefixTree
 from src.vocab import build_token_dictionary
 from src.generator import generate_function_call
@@ -70,7 +71,8 @@ def main() -> None:
     for fn in functions:
         trie.insert(fn.name)
     model = Small_LLM_Model()
-    token_dict, eos_token_id = build_token_dictionary(model)
+    tokenizer = Tokenizer.load_from_file(model.get_path_to_tokenizer_file())
+    token_dict, eos_token_id = build_token_dictionary(tokenizer)
     results = []
     max_retries = 2
     for i, test_case in enumerate(test_cases):
@@ -85,7 +87,7 @@ def main() -> None:
                     )
                 current_case = TestCase(prompt=current_prompt)
                 generated_json = generate_function_call(
-                    model, current_case, functions,
+                    model, tokenizer, current_case, functions,
                     eos_token_id, trie, token_dict
                 )
                 parsed_call = json.loads(generated_json)

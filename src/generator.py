@@ -1,24 +1,10 @@
 import numpy as np
 from typing import Callable
 from llm_sdk import Small_LLM_Model
+from src.tokenizer import Tokenizer
 from src.prompt import build_prompt
 from src.constraints import PrefixTree, NumberValidator, StringValidator
 from src.models import TestCase, FunctionDefinition
-
-
-def get_input_ids(model: Small_LLM_Model, raw_prompt: str) -> list[int]:
-    """Tokenizes a raw string into a list of input IDs using the model.
-
-    Args:
-        model: The language model instance used for encoding.
-        raw_prompt: The raw text string to be tokenized.
-
-    Returns:
-        A list of integer token IDs representing the input text.
-    """
-    input_tensor = model.encode(raw_prompt)
-    input_ids: list[int] = input_tensor.tolist()[0]
-    return input_ids
 
 
 def make_name_predicate(
@@ -217,6 +203,7 @@ def select_function_name(
 def generate_number_parameter(
     input_ids: list[int],
     model: Small_LLM_Model,
+    tokenizer: Tokenizer,
     token_dict: dict[int, str],
     eos_token_id: int,
     is_last_parameter: bool,
@@ -234,6 +221,7 @@ def generate_number_parameter(
         input_ids: The current sequence of token IDs representing the context.
             Tokens generated during this phase are appended in-place.
         model: The language model instance used for inference.
+        tokenizer: The custom Tokenizer instance used for encoding.
         token_dict: A mapping of token IDs to their corresponding
             string representations from the model's vocabulary.
         eos_token_id: The token ID representing the end of a sequence.
@@ -263,7 +251,7 @@ def generate_number_parameter(
     if generated_token_count > 0:
         del input_ids[-generated_token_count:]
     normalized_str = str(float(current_segment))
-    normalized_ids = get_input_ids(model, normalized_str)
+    normalized_ids = tokenizer.encode(normalized_str)
     input_ids.extend(normalized_ids)
 
 
@@ -295,6 +283,7 @@ def find_unescaped_quote(text: str) -> int:
 def generate_string_parameter(
     input_ids: list[int],
     model: Small_LLM_Model,
+    tokenizer: Tokenizer,
     token_dict: dict[int, str],
     eos_token_id: int,
     max_length: int = 100
@@ -309,6 +298,7 @@ def generate_string_parameter(
     Args:
         input_ids: The current sequence of token IDs representing the context.
         model: The language model instance used for inference.
+        tokenizer: The custom Tokenizer instance used for encoding.
         token_dict: A mapping of token IDs to their corresponding string
             representations from the model's vocabulary.
         eos_token_id: The token ID representing the end of a sequence.
@@ -318,7 +308,7 @@ def generate_string_parameter(
     validator = StringValidator()
     current_segment = ""
     generated_token_count = 0
-    input_ids.extend(get_input_ids(model, '"'))
+    input_ids.extend(tokenizer.encode('"'))
     while generated_token_count < max_length:
         logits = model.get_logits_from_input_ids(input_ids)
         is_allowed = make_string_predicate(validator, current_segment)
@@ -338,14 +328,15 @@ def generate_string_parameter(
         generated_token_count += 1
     if generated_token_count > 0:
         del input_ids[-generated_token_count:]
-    clean_ids = get_input_ids(model, current_segment)
+    clean_ids = tokenizer.encode(current_segment)
     input_ids.extend(clean_ids)
-    input_ids.extend(get_input_ids(model, '"'))
+    input_ids.extend(tokenizer.encode('"'))
 
 
 def generate_boolean_parameter(
     input_ids: list[int],
     model: Small_LLM_Model,
+    tokenizer: Tokenizer,
     token_dict: dict[int, str],
     eos_token_id: int,
     is_last_parameter: bool,
@@ -360,6 +351,7 @@ def generate_boolean_parameter(
     Args:
         input_ids: The current sequence of token IDs representing the context.
         model: The language model instance used for inference.
+        tokenizer: The custom Tokenizer instance used for encoding.
         token_dict: A mapping of token IDs to their corresponding string
             representations from the model's vocabulary.
         eos_token_id: The token ID representing the end of a sequence.
@@ -390,12 +382,13 @@ def generate_boolean_parameter(
         generated_token_count += 1
     if generated_token_count > 0:
         del input_ids[-generated_token_count:]
-    clean_ids = get_input_ids(model, current_segment)
+    clean_ids = tokenizer.encode(current_segment)
     input_ids.extend(clean_ids)
 
 
 def generate_parameters(
     model: Small_LLM_Model,
+    tokenizer: Tokenizer,
     input_ids: list[int],
     schema: FunctionDefinition,
     token_dict: dict[int, str],
@@ -409,6 +402,7 @@ def generate_parameters(
 
     Args:
         model: The language model instance used for inference.
+        tokenizer: The custom Tokenizer instance used for encoding.
         input_ids: The current sequence of context token IDs.
         schema: The definition of the selected function,
             including its expected parameters.
@@ -422,30 +416,36 @@ def generate_parameters(
     parameters = schema.parameters if schema.parameters else {}
     param_items = list(parameters.items())
     if not param_items:
-        input_ids.extend(get_input_ids(model, "}"))
+        input_ids.extend(tokenizer.encode("}"))
         return
     for i, (param_name, param_details) in enumerate(param_items):
         is_last_parameter = (i == len(param_items) - 1)
         key_text = f'"{param_name}": '
-        input_ids.extend(get_input_ids(model, key_text))
+        input_ids.extend(tokenizer.encode(key_text))
         param_type = param_details.arg_type
         if param_type == "number":
-            a_0 = input_ids, model, token_dict, eos_token_id, is_last_parameter
-            generate_number_parameter(*a_0)
+            generate_number_parameter(
+                input_ids, model, tokenizer, token_dict,
+                eos_token_id, is_last_parameter
+            )
         elif param_type == "string":
-            a_1 = input_ids, model, token_dict, eos_token_id
-            generate_string_parameter(*a_1)
+            generate_string_parameter(
+                input_ids, model, tokenizer, token_dict, eos_token_id
+            )
         elif param_type == "boolean":
-            a_2 = input_ids, model, token_dict, eos_token_id, is_last_parameter
-            generate_boolean_parameter(*a_2)
+            generate_boolean_parameter(
+                input_ids, model, tokenizer, token_dict,
+                eos_token_id, is_last_parameter
+            )
         else:
             raise ValueError(f"Unsupported parameter type: {param_type}")
         delimiter = "}" if is_last_parameter else ", "
-        input_ids.extend(get_input_ids(model, delimiter))
+        input_ids.extend(tokenizer.encode(delimiter))
 
 
 def generate_function_call(
     model: Small_LLM_Model,
+    tokenizer: Tokenizer,
     test_case: TestCase,
     functions: list[FunctionDefinition],
     eos_token_id: int,
@@ -472,14 +472,15 @@ def generate_function_call(
         The final generated JSON string representing the function call.
     """
     prompt = build_prompt(functions, test_case.prompt)
-    input_ids: list[int] = get_input_ids(model, prompt)
+    input_ids: list[int] = tokenizer.encode(prompt)
     generated_start = len(input_ids)
     args_1 = input_ids, trie, token_dict, eos_token_id, model
     selected_name = select_function_name(*args_1)
     selected_schema = next(fn for fn in functions if fn.name == selected_name)
-    transition_ids = get_input_ids(model, '", "parameters": {')
+    transition_ids = tokenizer.encode('", "parameters": {')
     input_ids.extend(transition_ids)
-    args_2 = model, input_ids, selected_schema, token_dict, eos_token_id
-    generate_parameters(*args_2)
-    generated = model.decode(input_ids[generated_start:])
+    generate_parameters(
+        model, tokenizer, input_ids, selected_schema, token_dict, eos_token_id
+    )
+    generated = tokenizer.decode(input_ids[generated_start:])
     return '{"name": "' + generated + '}'
