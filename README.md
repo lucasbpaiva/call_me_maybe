@@ -181,6 +181,8 @@ uv run python -m src --functions_definition functins.json --input prompts.json -
 - **Regex Documentation:** [Python `re` module](https://docs.python.org/3/library/re.html), used to structure the JSON string and number state machines.
 - **GeeksforGeeks:** [Trie Data Structures](https://www.geeksforgeeks.org/dsa/trie-insert-and-search/). General algorithmic concepts for prefix trees.
 - **Constrained Decoding:** [Language AI Handbook](https://mbrenndoerfer.com/writing/constrained-decoding-structured-llm-output) by Michael Brenndoerfer has a really in-depth explanation of the concept with lots of examples.
+- **HuggingFace LLM Course:** [Chapter 6](https://huggingface.co/learn/llm-course/en/chapter6/1) introduces the concepts of Tokenizers, Normalization, Pre-Tokenization, Byte-Pair Encoding, and shows how toi build a tokenizer from scratch.
+- **MDN:** Quick [reference](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/normalize) for understanding NFC Normalization.
 
 ## AI Usage: 
 
