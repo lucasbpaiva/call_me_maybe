@@ -1,19 +1,17 @@
-import json
-from llm_sdk import Small_LLM_Model
+from src.tokenizer import Tokenizer
 
 
 def build_token_dictionary(
-    model: Small_LLM_Model
+    tokenizer: Tokenizer
 ) -> tuple[dict[int, str], int]:
-    """Loads the vocabulary, decodes tokens, and extracts the EOS token ID.
+    """Builds the token-ID-to-string lookup table and locates the EOS ID.
 
-    Reads the raw tokenizer vocabulary JSON file located by the SDK, decodes
-    each token ID into its true string representation using Byte-Level BPE, and
-    locates the required stopping token ID (`<|endoftext|>` or `<|im_end|>`).
+    Decodes every vocabulary ID using the custom Byte-Level BPE tokenizer and
+    retrieves the stopping token ID (`<|endoftext|>` or `<|im_end|>`) from
+    the loaded special tokens table.
 
     Args:
-        model: The initialized SDK model instance used to fetch the
-            vocabulary path and decode individual tokens.
+        tokenizer: The initialized custom Tokenizer instance.
 
     Returns:
         A tuple containing:
@@ -23,29 +21,17 @@ def build_token_dictionary(
                 Sequence token.
 
     Raises:
-        RuntimeError: If the vocabulary JSON file cannot be opened or parsed.
         ValueError: If neither `<|endoftext|>` nor `<|im_end|>` exists in
-            the tokenizer vocabulary.
+            the tokenizer's special tokens.
     """
-    vocab_path = model.get_path_to_vocab_file()
-    tokenizer_path = model.get_path_to_tokenizer_file()
-    try:
-        with open(vocab_path, 'r', encoding='utf-8') as f:
-            raw_vocab = json.load(f)
-        with open(tokenizer_path, "r", encoding="utf-8") as f:
-            tokenizer_data = json.load(f)
-    except Exception as e:
-        raise RuntimeError(f"Failed to load tokenizer files: {e}")
-    eos_token_id = None
-    for token_data in tokenizer_data.get("added_tokens", []):
-        if token_data.get("content") in ("<|endoftext|>", "<|im_end|>"):
-            eos_token_id = token_data.get("id")
+    eos_token_id: int | None = None
+    for content in ("<|endoftext|>", "<|im_end|>"):
+        if content in tokenizer.special_tokens.str_to_id:
+            eos_token_id = tokenizer.special_tokens.str_to_id[content]
             break
     if eos_token_id is None:
-        raise ValueError(
-            "Could not locate EOS token in added_tokens."
-        )
+        raise ValueError("Could not locate EOS token in added_tokens.")
     token_table: dict[int, str] = {}
-    for token_id in raw_vocab.values():
-        token_table[token_id] = model.decode([token_id])
+    for token_id in tokenizer.id_to_token:
+        token_table[token_id] = tokenizer.decode([token_id])
     return (token_table, eos_token_id)
