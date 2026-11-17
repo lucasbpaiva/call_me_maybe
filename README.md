@@ -176,6 +176,50 @@ uv run python -m src --functions_definition functins.json --input prompts.json -
 ]
 ```
 
+## Bonus Features
+
+In addition to core constrained decoding, this project implements three architectural bonuses focused on reliability, self-contained tokenization, and automated verification:
+
+### 1. Custom Byte-Level BPE Tokenizer (`encode` & `decode`)
+
+Rather than relying on `Small_LLM_Model`'s built-in `encode()` and `decode()` methods, the pipeline uses a custom, standalone Byte-Level BPE tokenizer (`src/tokenizer.py`) initialized directly from `tokenizer.json`:
+
+* **Public `encode(text: str) -> list[int]` Pipeline:** Partitions special and added tokens longest-first prior to text normalization (`SpecialTokens`), applies Unicode `NFC` normalization to ordinary text segments, isolates words/digits/punctuation using Qwen's Unicode-aware regular expression (`PreTokenizer`), maps raw UTF-8 bytes onto a 256-character printable Unicode alphabet (`ByteMap`), and executes deterministic rank-ordered BPE merges with per-word caching (`BPE`).
+
+
+* **Public `decode(ids: list[int], skip_special_tokens: bool = True) -> str` Pipeline:** Buffers consecutive BPE symbols before reversing the `ByteMap` translation and performing a single UTF-8 decode per contiguous byte run. This preserves multi-byte characters (such as CJK text and astral-plane emojis) split across multiple tokens while injecting literal added tokens cleanly.
+
+
+* **Full Pipeline Integration:** Powers prompt and delimiter tokenization, vocabulary table construction (`build_token_dictionary`), and final JSON output reconstruction (`generate_function_call`) with 100% token-for-token parity against the SDK.
+
+
+
+### 2. Error Recovery & Retry Mechanism
+
+To prevent malformed outputs or dead-end token paths during constrained generation, the pipeline incorporates multi-layered validation and recovery:
+
+* **Schema & Input Validation:** Strict Pydantic v2 models validate function definitions, input prompts, and tokenizer tables at startup, failing fast with descriptive diagnostics on corrupted configurations.
+
+
+* **Finite-State Constrained Backtracking & Normalization:** State machines (`PrefixTree`, `NumberValidator`, `StringValidator`) prune invalid token candidates at every decoding step. When numeric or string segments terminate, intermediate token sequences are rolled back and re-tokenized in canonical form (e.g., normalizing parsed numbers via `float` conversion and clean escape formatting) so subsequent logits remain well-conditioned.
+
+
+* **Graceful Generation Retry Loop:** If a generation attempt hits a dead-end state (such as exhausting valid vocabulary candidates or exceeding step limits without reaching a valid closing delimiter), the generator catches the failure, resets/adjusts the decoding state, and retries generation to guarantee a syntactically valid JSON payload.
+
+
+
+### 3. Comprehensive Test & Static Analysis Suite
+
+The codebase includes an automated testing and quality-assurance suite covering individual components, end-to-end differential parity, and strict static typing:
+
+* **Frozen Oracle & Differential Testing (`tests/golden.json`):** Validates `encode` and `decode` byte-for-byte against `Small_LLM_Model` across a corpus of edge cases—including composed/decomposed Unicode (`NFC`/`NFD`), CJK, ZWJ emoji sequences, partial multi-byte prefix decodes, control tokens (`<|im_start|>`, `<think>`), and complete function-call JSON payloads.
+
+
+* **Component Unit & Fuzz Tests:** Dedicated `pytest` modules verify `ByteMap` bijectivity, `BPE` merge-rank priority ordering, `PreTokenizer` lossless partitioning, `SpecialTokens` longest-first matching, constraint state machines, and seeded random-Unicode fuzzing.
+
+
+* **Automated Execution & Linting:** Run the entire suite via `make test` and enforce `flake8` compliance alongside `mypy --strict` type safety via `make lint-strict`.
+
 ## Resources
 
 - **Regex Documentation:** [Python `re` module](https://docs.python.org/3/library/re.html), used to structure the JSON string and number state machines.
