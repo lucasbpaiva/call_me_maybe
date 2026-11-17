@@ -79,7 +79,10 @@ def main() -> None:
         for attempt in range(max_retries):
             try:
                 current_prompt = test_case.prompt
-                print(f'Prompt {i + 1}: "{current_prompt}"')
+                n = len(test_cases)
+                blue = "\033[94m"
+                reset = "\033[0m"
+                print(f'{blue}Prompt {i + 1}/{n}:{reset} "{current_prompt}"')
                 if attempt > 0:
                     current_prompt += (
                         "\n\n[System Note: Your previous attempt produced an "
@@ -96,6 +99,8 @@ def main() -> None:
                     "name": parsed_call.get("name"),
                     "parameters": parsed_call.get("parameters", {})
                 }
+                print(f"\tFunction chosen: {final_obj.get('name')}")
+                print(f"\tParameters: {final_obj.get('parameters')}")
                 results.append(final_obj)
                 break
             except Exception as err:
